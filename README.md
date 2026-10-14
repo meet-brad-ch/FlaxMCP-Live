@@ -35,7 +35,8 @@ selected with `FLAX_TOOLSETS`.
 | `project` | `project_info`, `project_targets`, `project_settings` |
 | `content` | `content_search`, `content_asset_info`, `content_resolve_guid` |
 | `scene` | `scene_list`, `scene_outline`, `scene_find_actor` |
-| `build` | `build_generate_projects`, `build_compile_scripts`, `build_clear_cache`, `build_game`, `build_status`, `build_result` |
+| `build` | `build_generate_projects`, `build_compile_scripts`, `build_clear_cache`, `build_game` |
+| `jobs` | `editor_job_start`, `job_status`, `job_wait` |
 | `logs` | `logs_tail`, `logs_errors` |
 | `editor` | `editor_scene_graph`, `editor_get_selection`, `editor_set_selection`, `editor_actor_details`, `editor_modify_actor`, `editor_save`, `editor_play_mode`, `editor_screenshot` |
 
@@ -57,11 +58,15 @@ attach scripts to their owners, and report when response limits truncate a resul
 `build_generate_projects`, `build_compile_scripts`, and `build_clear_cache` run the editor headlessly and wait for the
 operation. Script compilation extracts structured diagnostics rather than returning a raw log.
 
-`build_game` can take minutes, so it starts a background job and immediately returns a job ID:
+`build_game` can take minutes, so it starts a background job and immediately returns its handle:
 
 1. Call `build_game` with a preset and target, for example `Development` and `Windows`.
-2. Poll `build_status` with the returned job ID.
-3. Call `build_result` after the status is no longer `running`.
+2. Call `job_wait` with the returned job ID (it sends progress notifications and returns the state when the job ends or
+   the wait times out), or read `job_status`.
+3. The ended job's `result` is the build outcome; a failed job carries its `error`.
+
+Long editor operations run as jobs too: `editor_job_start` starts compile, play mode or scene opening and returns at
+once; editor jobs run one at a time.
 
 Build tools refuse to start a second editor process while the same project has a live editor session. Close the GUI editor
 before using them. `logs_tail` and `logs_errors` only read the newest project log and remain available while it is running.
@@ -154,7 +159,7 @@ Call `server_info`, `project_info`, and `flax_status` as a basic verification.
 | `FLAX_LOG_LEVEL` | no | Minimum server log level written to stderr; defaults to `Warning` |
 
 Unknown toolset names fail at startup and list valid values. With `FLAX_READ_ONLY=true`, the remaining tools are
-`server_info`, `flax_status`, all project/content/scene tools, `build_status`, `build_result`, both log tools,
+`server_info`, `flax_status`, all project/content/scene tools, `job_status`, `job_wait`, both log tools,
 `editor_scene_graph`, `editor_get_selection`, and `editor_actor_details`.
 
 ## Security

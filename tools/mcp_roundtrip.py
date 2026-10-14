@@ -1,5 +1,5 @@
 """A stdio MCP round trip against a FlaxMcp server build: initialize, tools/list, then the tool calls given as
-name=json (or name=@file.json) arguments, in order. Prints each call's time and text result (or its error). Exits 1 if any call failed.
+name=json (or name=@file.json) arguments, in order. Progress notifications are printed as they arrive. Prints each call's time and text result (or its error). Exits 1 if any call failed.
 
     python tools/mcp_roundtrip.py .publish/FlaxMcp.exe C:/path/to/FlaxProject flax_status='{}' editor_compile='{}'
 """
@@ -45,6 +45,10 @@ class StdioMcpClient:
             if not line:
                 raise RuntimeError(f'the server closed its output during {method}')
             reply = json.loads(line)
+            if reply.get('method') == 'notifications/progress':
+                value = reply.get('params', {})
+                print(f"  progress {value.get('progress')}: {value.get('message')}", flush=True)
+                continue
             if reply.get('id') == self._next_id:
                 return reply
 
@@ -94,7 +98,9 @@ class RoundTrip:
 
     def _call(self, call: ToolCall) -> CallOutcome:
         start = time.time()
-        reply = self._client.request('tools/call', {'name': call.name, 'arguments': call.arguments})
+        # every call asks for progress notifications; the server sends them only for tools that report progress
+        reply = self._client.request('tools/call', {'name': call.name, 'arguments': call.arguments,
+                                                    '_meta': {'progressToken': call.name}})
         seconds = time.time() - start
         if 'error' in reply:
             return CallOutcome(call.name, seconds, True, f'PROTOCOL ERROR {reply["error"]}')
