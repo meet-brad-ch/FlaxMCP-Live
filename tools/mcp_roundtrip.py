@@ -1,5 +1,6 @@
 """A stdio MCP round trip against a FlaxMcp server build: initialize, tools/list, then the tool calls given as
-name=json (or name=@file.json) arguments, in order. Progress notifications are printed as they arrive. Prints each call's time and text result (or its error). Exits 1 if any call failed.
+name=json (or name=@file.json) arguments, in order. Progress notifications are printed as they arrive; a structured
+result that lacks a property its output schema requires counts as a failure (strict clients reject it). Prints each call's time and text result (or its error). Exits 1 if any call failed.
 
     python tools/mcp_roundtrip.py .publish/FlaxMcp.exe C:/path/to/FlaxProject flax_status='{}' editor_compile='{}'
 """
@@ -81,11 +82,35 @@ class ArgumentText:
         return json.dumps({'code': text}) if value.endswith('.cs') else text
 
 
+class SchemaCheck:
+    """Checks a structured result against the tool's output schema the way a strict client does: every required
+    property present, in nested objects and in the items of arrays too."""
+
+    @staticmethod
+    def missing(value, schema: dict, path: str = 'data') -> list:
+        """The required properties absent from the value, as JSON paths."""
+        if not isinstance(schema, dict) or value is None:
+            return []
+        problems = []
+        if isinstance(value, dict):
+            for name in schema.get('required', []):
+                if name not in value:
+                    problems.append(f'{path}.{name}')
+            for name, child in schema.get('properties', {}).items():
+                if name in value:
+                    problems += SchemaCheck.missing(value[name], child, f'{path}.{name}')
+        elif isinstance(value, list) and isinstance(schema.get('items'), dict):
+            for index, item in enumerate(value):
+                problems += SchemaCheck.missing(item, schema['items'], f'{path}[{index}]')
+        return problems
+
+
 class RoundTrip:
     """Runs the calls against one server and reports them."""
 
     def __init__(self, client: StdioMcpClient):
         self._client = client
+        self._schemas = {}
 
     def run(self, calls: list) -> list:
         """Initializes the session, lists the tools and runs every call in order."""
@@ -93,6 +118,7 @@ class RoundTrip:
                                             'clientInfo': {'name': 'mcp_roundtrip', 'version': '1'}})
         self._client.notify('notifications/initialized')
         tools = self._client.request('tools/list', {})['result']['tools']
+        self._schemas = {tool['name']: tool.get('outputSchema') for tool in tools}
         print(f'{len(tools)} tools')
         return [self._call(call) for call in calls]
 
@@ -106,6 +132,11 @@ class RoundTrip:
             return CallOutcome(call.name, seconds, True, f'PROTOCOL ERROR {reply["error"]}')
         result = reply['result']
         text = ' '.join(part.get('text', '') for part in result.get('content', []))
+        schema = self._schemas.get(call.name)
+        if schema and not result.get('isError') and 'structuredContent' in result:
+            missing = SchemaCheck.missing(result['structuredContent'], schema)
+            if missing:
+                return CallOutcome(call.name, seconds, True, 'OUTPUT SCHEMA: missing required ' + ', '.join(missing[:8]))
         return CallOutcome(call.name, seconds, bool(result.get('isError')), text)
 
 
