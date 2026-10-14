@@ -39,3 +39,6 @@ docs/
 ## OS files
 Thumbs.db
 .DS_Store
+
+## Published server (tools/publish.sh)
+.publish/
