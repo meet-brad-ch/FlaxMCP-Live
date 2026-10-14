@@ -13,11 +13,13 @@ public sealed class EditorTools
     private static readonly TimeSpan CompileDeadline = TimeSpan.FromSeconds(125);
     private readonly IFlaxBridgeClient _bridgeClient;
     private readonly FlaxJobManager _jobs;
+    private readonly IFlaxScriptChecker _checker;
 
-    public EditorTools(IFlaxBridgeClient bridgeClient, FlaxJobManager jobs)
+    public EditorTools(IFlaxBridgeClient bridgeClient, FlaxJobManager jobs, IFlaxScriptChecker checker)
     {
         _bridgeClient = bridgeClient;
         _jobs = jobs;
+        _checker = checker;
     }
 
     /// <summary>Runs an editor operation as an exclusive job and waits for it up to its deadline.</summary>
@@ -322,9 +324,11 @@ public sealed class EditorTools
 
     [McpServerTool(Name = "editor_compile", UseStructuredContent = true)]
     [Description(
-        "Compiles the project's scripts in the live Flax Editor and waits for the result (up to 120 seconds): stops " +
-        "play mode first, then reports 'reloaded' (the scripts and this bridge reloaded), 'unchanged' (nothing to " +
-        "reload), or 'failed' with the compiler errors and build errors (e.g. Sharing violation) from the log."
+        "Compiles the project's scripts and returns when the editor has reloaded and settled. The scripts are first " +
+        "compiled outside the editor with the compiler arguments Flax.Build last used (build_check_scripts): errors " +
+        "come back at once, structured (file, line, column, code), and the editor is not touched. A clean check goes on " +
+        "to the editor's compile; its outcome is reloaded, unchanged or failed (build tool lines in BuildErrors). Check " +
+        "says how the check went (passed, failed, or unavailable with the reason). Stops play mode first."
     )]
     public Task<FlaxEditorCompileResult> CompileAsync(
         IProgress<ProgressNotificationValue>? progress = null,
@@ -332,7 +336,7 @@ public sealed class EditorTools
     {
         return RunAsJobAsync(
             "compile",
-            jobProgress => _bridgeClient.CompileAsync(CancellationToken.None, jobProgress),
+            jobProgress => FlaxCheckedCompile.RunAsync(_checker, _bridgeClient, jobProgress, CancellationToken.None),
             CompileDeadline,
             progress,
             cancellationToken);
