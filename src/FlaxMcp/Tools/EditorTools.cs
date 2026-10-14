@@ -314,6 +314,20 @@ public sealed class EditorTools
         return _bridgeClient.OpenSceneAsync(path, cancellationToken);
     }
 
+    [McpServerTool(Name = "editor_host_status", ReadOnly = true, UseStructuredContent = true)]
+    [Description(
+        "Returns the state of the bridge host, the pipe server that outlives script reloads: its version and start " +
+        "time, the attached plugin generation, attach and detach counts, the editor's memory and garbage collections, " +
+        "and how many old plugin load contexts are still alive (reloads that leak). collect=true runs a full garbage " +
+        "collection first so that count is a measurement; it takes long on a large heap."
+    )]
+    public Task<FlaxBridgeHostStatus> GetHostStatusAsync(
+        [Description("Run a full garbage collection before counting the old plugin load contexts.")] bool collect = false,
+        CancellationToken cancellationToken = default)
+    {
+        return _bridgeClient.GetHostStatusAsync(collect, cancellationToken);
+    }
+
     [McpServerTool(Name = "editor_execute_csharp", UseStructuredContent = true)]
     [RequiresCodeExecution]
     [Description(
