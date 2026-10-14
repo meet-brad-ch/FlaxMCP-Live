@@ -1,5 +1,5 @@
 """A stdio MCP round trip against a FlaxMcp server build: initialize, tools/list, then the tool calls given as
-name=json arguments, in order. Prints each call's time and text result (or its error). Exits 1 if any call failed.
+name=json (or name=@file.json) arguments, in order. Prints each call's time and text result (or its error). Exits 1 if any call failed.
 
     python tools/mcp_roundtrip.py .publish/FlaxMcp.exe C:/path/to/FlaxProject flax_status='{}' editor_compile='{}'
 """
@@ -62,6 +62,21 @@ class StdioMcpClient:
         self._process.stdin.flush()
 
 
+class ArgumentText:
+    """A call's JSON arguments: inline, or `@path` to read them from a file (Windows mangles `\\"` on the command
+    line, so snippets with string literals go in a file)."""
+
+    @staticmethod
+    def read(value: str) -> str:
+        """Returns the JSON text the value names."""
+        if not value.startswith('@'):
+            return value
+        with open(value[1:], encoding='utf-8') as file:
+            text = file.read()
+        # A .cs file is an editor_execute_csharp body.
+        return json.dumps({'code': text}) if value.endswith('.cs') else text
+
+
 class RoundTrip:
     """Runs the calls against one server and reports them."""
 
@@ -92,14 +107,14 @@ def main() -> int:
     """Entry point: python mcp_roundtrip.py <FlaxMcp.exe> <project folder> name=json ..."""
     if len(sys.argv) < 3:
         sys.exit(__doc__)
-    calls = [ToolCall(name, json.loads(arguments)) for name, arguments in
+    calls = [ToolCall(name, json.loads(ArgumentText.read(arguments))) for name, arguments in
              (argument.split('=', 1) for argument in sys.argv[3:])]
     client = StdioMcpClient(sys.argv[1], sys.argv[2])
     outcomes = RoundTrip(client).run(calls)
     client.close()
     for outcome in outcomes:
         flag = 'ERROR ' if outcome.failed else ''
-        print(f'{outcome.name} ({outcome.seconds:.1f} s): {flag}{outcome.text[:600]}')
+        print(f'{outcome.name} ({outcome.seconds:.1f} s): {flag}{outcome.text}')
     return 1 if any(outcome.failed for outcome in outcomes) else 0
 
 
