@@ -1,6 +1,6 @@
 # FlaxMCP
 
-[![CI](https://github.com/eXoz00rd/FlaxMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/eXoz00rd/FlaxMCP/actions/workflows/ci.yml)
+[![CI](https://github.com/meet-brad-ch/FlaxMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/meet-brad-ch/FlaxMCP/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 MCP (Model Context Protocol) server for **[Flax Engine](https://flaxengine.com)** projects, built with **.NET 10 / C#**
@@ -8,6 +8,9 @@ on the official [ModelContextProtocol C# SDK](https://www.nuget.org/packages/Mod
 
 > **Status:** source-only alpha. The server and bridge work from a checkout, but no public package or MCP registry entry
 > has been released yet.
+
+This repository is a private working copy of [eXoz00rd/FlaxMCP](https://github.com/eXoz00rd/FlaxMCP) (git remote
+`upstream`). Changes are committed to `main` here and are not sent upstream.
 
 ## Why
 
