@@ -2,7 +2,7 @@ namespace FlaxMcp.Flax;
 
 /// <summary>
 /// Reads the GUID/TypeName header of a binary .flax asset. The format is undocumented and was
-/// reverse-engineered from real assets (Flax 1.12, Storage format version 9): 4-byte "CFWF" magic,
+/// reverse-engineered from real assets (Storage format version 9; checked on Flax 1.12 and 1.13): 4-byte "CFWF" magic,
 /// 4-byte format version, 16 reserved bytes, a 4-byte field, then a 16-byte GUID and a null-terminated
 /// UTF-16LE TypeName. The GUID's text form is not .NET's Guid.ToString() layout — it's four raw
 /// little-endian uint32 chunks hex-formatted and concatenated; this was cross-checked against a real

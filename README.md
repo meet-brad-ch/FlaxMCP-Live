@@ -49,7 +49,7 @@ only when `FLAX_ALLOW_CODE_EXECUTION=true` and read-only mode is disabled.
 
 `project_info` reads the `.flaxproj`; `project_targets` parses declarations from `*.Build.cs`; and `project_settings`
 returns structured settings assets. The content tools maintain an in-memory index under `Content/`, including GUID and
-type metadata read from Flax 1.12 binary asset headers. Unrecognized binary assets remain searchable by path without
+type metadata read from binary asset headers (Storage format version 9, Flax 1.12 and 1.13). Unrecognized binary assets remain searchable by path without
 guessed metadata.
 
 The scene tools parse `.scene` and `.prefab` files without starting the editor. Actor trees use `ParentID` relationships,
@@ -106,7 +106,7 @@ it requires a GUI editor with a rendered viewport and does not work headlessly. 
 ## Requirements
 
 - .NET 10 SDK
-- Flax Engine 1.12.6912 or newer installed locally
+- Flax Engine 1.13.7012 or newer installed locally
 - a Flax project (`.flaxproj`)
 - the companion plugin installed in that project for live editor tools
 

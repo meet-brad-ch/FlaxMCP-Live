@@ -19,7 +19,7 @@ public sealed class ContentTools
     }
 
     [McpServerTool(Name = "content_search", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Searches the Content/ index by partial path match, TypeName, and/or extension. Id/TypeName are null for files whose format isn't recognized or a .flax header that doesn't match the reverse-engineered layout (verified against Flax 1.12).")]
+    [Description("Searches the Content/ index by partial path match, TypeName, and/or extension. Id/TypeName are null for files whose format isn't recognized or a .flax header that doesn't match the reverse-engineered layout (verified against Flax 1.12 and 1.13).")]
     public IReadOnlyList<FlaxContentAssetInfo> SearchContent(string? query = null, string? typeName = null, string? extension = null)
     {
         return _index.Search(query, typeName, extension);
