@@ -14,6 +14,8 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
+      - name: Check the release version
+        run: tools/check_version.sh
       - name: Restore
         run: dotnet restore FlaxMcp.slnx
       - name: Verify formatting

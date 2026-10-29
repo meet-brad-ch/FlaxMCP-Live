@@ -19,6 +19,16 @@ public class ServerInfoToolTests
     }
 
     [Fact]
+    public void GetServerInfo_ReportsTheReleaseVersionWithItsLabel()
+    {
+        var tool = new ServerInfoTool(new StubBridgeClient(FlaxBridgeStatus.Disconnected));
+
+        var info = tool.GetServerInfo();
+
+        Assert.Matches(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$", info.Version);
+    }
+
+    [Fact]
     public async Task GetFlaxStatusAsync_ReturnsBridgeClientStatus()
     {
         var expected = new FlaxBridgeStatus(true, "1.2.3", 12000, DateTime.UtcNow);

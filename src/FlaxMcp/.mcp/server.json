@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
-  "name": "io.github.exoz00rd/flaxmcp",
-  "description": "MCP server for Flax Engine projects.",
-  "version": "0.1.0-preview.1",
+  "name": "io.github.meet-brad-ch/flaxmcp-live",
+  "description": "MCP server for Flax Engine projects with a live editor bridge.",
+  "version": "0.2.0-preview.1",
   "repository": {
-    "url": "https://github.com/eXoz00rd/FlaxMCP",
+    "url": "https://github.com/meet-brad-ch/FlaxMCP-Live",
     "source": "github"
   },
   "packages": [
     {
       "registryType": "nuget",
-      "identifier": "FlaxMcp",
-      "version": "0.1.0-preview.1",
+      "identifier": "FlaxMcp-Live",
+      "version": "0.2.0-preview.1",
       "transport": {
         "type": "stdio"
       },

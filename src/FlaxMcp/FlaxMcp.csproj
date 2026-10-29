@@ -6,13 +6,13 @@
     <RootNamespace>FlaxMcp</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <PackageType>McpServer;DotnetTool</PackageType>
-    <ToolCommandName>flax-mcp</ToolCommandName>
-    <PackageId>FlaxMcp</PackageId>
-    <VersionPrefix>0.1.0</VersionPrefix>
-    <VersionSuffix>dev</VersionSuffix>
-    <Description>MCP server for Flax Engine projects.</Description>
-    <PackageTags>mcp;mcp-server;flax;flax-engine;game-development</PackageTags>
-    <RepositoryUrl>https://github.com/eXoz00rd/FlaxMCP</RepositoryUrl>
+    <ToolCommandName>flax-mcp-live</ToolCommandName>
+    <PackageId>FlaxMcp-Live</PackageId>
+    <VersionPrefix>0.2.0</VersionPrefix>
+    <VersionSuffix>preview.1</VersionSuffix>
+    <Description>MCP server for Flax Engine projects with a live editor bridge: unattended compile, play and test loops.</Description>
+    <PackageTags>mcp;mcp-server;flax;flax-engine;game-development;live-editor</PackageTags>
+    <RepositoryUrl>https://github.com/meet-brad-ch/FlaxMCP-Live</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
