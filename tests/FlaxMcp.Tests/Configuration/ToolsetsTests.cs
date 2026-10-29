@@ -20,14 +20,6 @@ public sealed class ToolsetsTests
     }
 
     [Fact]
-    public void Resolve_Editor_ReturnsBothEditorToolClasses()
-    {
-        var types = Toolsets.Resolve("editor");
-
-        Assert.Equal([typeof(ServerInfoTool), typeof(EditorTools), typeof(EditorObjectTools)], types);
-    }
-
-    [Fact]
     public void Resolve_WithSelection_KeepsServerToolsetAndSelectedOnes()
     {
         var types = Toolsets.Resolve("project");

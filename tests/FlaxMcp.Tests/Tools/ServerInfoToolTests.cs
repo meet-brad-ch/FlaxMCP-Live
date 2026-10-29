@@ -5,7 +5,7 @@ using Xunit;
 
 namespace FlaxMcp.Tests.Tools;
 
-public class ServerInfoToolTests
+public partial class ServerInfoToolTests
 {
     [Fact]
     public void GetServerInfo_ReturnsFlaxMcpName()
@@ -19,16 +19,6 @@ public class ServerInfoToolTests
     }
 
     [Fact]
-    public void GetServerInfo_ReportsTheReleaseVersionWithItsLabel()
-    {
-        var tool = new ServerInfoTool(new StubBridgeClient(FlaxBridgeStatus.Disconnected));
-
-        var info = tool.GetServerInfo();
-
-        Assert.Matches(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$", info.Version);
-    }
-
-    [Fact]
     public async Task GetFlaxStatusAsync_ReturnsBridgeClientStatus()
     {
         var expected = new FlaxBridgeStatus(true, "1.2.3", 12000, DateTime.UtcNow);
@@ -39,7 +29,7 @@ public class ServerInfoToolTests
         Assert.Equal(expected, status);
     }
 
-    private sealed class StubBridgeClient(FlaxBridgeStatus status) : IFlaxBridgeClient
+    private sealed partial class StubBridgeClient(FlaxBridgeStatus status) : IFlaxBridgeClient
     {
         public Task<FlaxBridgeStatus> GetStatusAsync(CancellationToken cancellationToken = default)
         {
@@ -202,21 +192,6 @@ public class ServerInfoToolTests
         public Task<FlaxCodeExecutionResult> ExecuteCSharpAsync(
             string code,
             CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<FlaxEditorCompileResult> CompileAsync(CancellationToken cancellationToken = default, IProgress<string>? progress = null)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<FlaxEditorOpenSceneResult> OpenSceneAsync(string path, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<FlaxBridgeHostStatus> GetHostStatusAsync(bool collect, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
         }

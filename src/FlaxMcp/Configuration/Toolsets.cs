@@ -6,18 +6,18 @@ public static class Toolsets
 {
     public const string ServerToolset = "server";
 
-    private static readonly Dictionary<string, Type[]> Registry = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, Type> Registry = new(StringComparer.OrdinalIgnoreCase)
     {
-        [ServerToolset] = [typeof(ServerInfoTool)],
-        ["project"] = [typeof(ProjectTools)],
-        ["content"] = [typeof(ContentTools)],
-        ["scene"] = [typeof(SceneTools)],
-        ["build"] = [typeof(BuildTools)],
-        ["logs"] = [typeof(LogTools)],
-        ["editor"] = [typeof(EditorTools), typeof(EditorObjectTools)],
-        ["game"] = [typeof(GameTools)],
-        ["events"] = [typeof(EditorEventTools)],
-        ["jobs"] = [typeof(JobTools)]
+        [ServerToolset] = typeof(ServerInfoTool),
+        ["project"] = typeof(ProjectTools),
+        ["content"] = typeof(ContentTools),
+        ["scene"] = typeof(SceneTools),
+        ["build"] = typeof(BuildTools),
+        ["logs"] = typeof(LogTools),
+        ["editor"] = typeof(EditorTools),
+        ["game"] = typeof(GameTools),
+        ["events"] = typeof(EditorEventTools),
+        ["jobs"] = typeof(JobTools)
     };
 
     public static IReadOnlyCollection<string> Names => Registry.Keys;
@@ -26,10 +26,10 @@ public static class Toolsets
     {
         if (string.IsNullOrWhiteSpace(requested))
         {
-            return [.. Registry.Values.SelectMany(types => types)];
+            return [.. Registry.Values.SelectMany(ToolsetCompanions.WithCompanions)];
         }
 
-        var selected = new List<Type>(Registry[ServerToolset]);
+        var selected = new List<Type> { Registry[ServerToolset] };
         var unknown = new List<string>();
 
         foreach (var name in requested.Split(
@@ -42,9 +42,12 @@ public static class Toolsets
                 continue;
             }
 
-            if (Registry.TryGetValue(name, out var types))
+            if (Registry.TryGetValue(name, out var type))
             {
-                selected.AddRange(types.Where(type => !selected.Contains(type)));
+                if (!selected.Contains(type))
+                {
+                    selected.AddRange(ToolsetCompanions.WithCompanions(type));
+                }
             }
             else
             {

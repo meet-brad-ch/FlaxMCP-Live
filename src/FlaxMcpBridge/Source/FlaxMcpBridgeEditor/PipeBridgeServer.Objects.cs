@@ -21,6 +21,9 @@ internal sealed partial class PipeBridgeServer
     /// <summary>The deepest struct nesting that <see cref="Plain"/> follows field by field.</summary>
     private const int MaxStructDepth = 8;
 
+    /// <summary>The most distinct loader errors one type_load_failed message names.</summary>
+    private const int MaxReportedLoaderErrors = 3;
+
     /// <summary>Selects public and non-public instance members.</summary>
     private const BindingFlags InstanceMembers = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -692,15 +695,24 @@ internal sealed partial class PipeBridgeServer
     /// A type by full or short name, from the newest loaded copy of each assembly (a reload that could not unload the
     /// old game assemblies leaves older copies loaded).
     /// </summary>
+    /// <param name="name">The full or short type name.</param>
+    /// <returns>The one type with that name.</returns>
+    /// <exception cref="BridgeRequestException">
+    /// No type has the name and some types failed to load (code <c>type_load_failed</c>), no type has the name (code
+    /// <c>unknown_type</c>), or several types have it (code <c>ambiguous_type</c>).
+    /// </exception>
     private static Type ResolveType(string name)
     {
-        Type[] matches = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => !assembly.IsDynamic)
-            .GroupBy(assembly => assembly.GetName().Name)
-            .Select(group => group.Last())
-            .SelectMany(assembly => LoadableTypes(assembly))
+        var loaderErrors = new List<string>();
+        Type[] matches = NewestAssemblies()
+            .SelectMany(assembly => LoadableTypes(assembly, loaderErrors))
             .Where(type => IsNamed(type, name))
             .ToArray();
+        if (matches.Length == 0 && loaderErrors.Count > 0)
+        {
+            throw TypeLoadFailed(name, loaderErrors);
+        }
+
         if (matches.Length == 0)
         {
             throw new BridgeRequestException("unknown_type", $"No loaded type is named '{name}'.");
@@ -715,10 +727,14 @@ internal sealed partial class PipeBridgeServer
         return matches[0];
     }
 
-    /// <summary>Lists the types of an assembly; when some types cannot load, lists the ones that did.</summary>
+    /// <summary>
+    /// Lists the types of an assembly; when some types cannot load, lists the ones that did and records the loader
+    /// errors, so that a lookup that finds nothing can tell that the type may be one that failed to load.
+    /// </summary>
     /// <param name="assembly">The assembly.</param>
+    /// <param name="loaderErrors">Receives one line per loader error: the assembly name and the error message.</param>
     /// <returns>The loadable types.</returns>
-    private static Type[] LoadableTypes(Assembly assembly)
+    private static Type[] LoadableTypes(Assembly assembly, List<string> loaderErrors)
     {
         try
         {
@@ -727,8 +743,43 @@ internal sealed partial class PipeBridgeServer
         catch (ReflectionTypeLoadException ex)
         {
             // A game assembly may reference a type that is gone; its other types stay usable.
+            string? assemblyName = assembly.GetName().Name;
+            int countBefore = loaderErrors.Count;
+            foreach (Exception? loaderException in ex.LoaderExceptions)
+            {
+                if (loaderException is not null)
+                {
+                    loaderErrors.Add($"{assemblyName}: {loaderException.Message}");
+                }
+            }
+
+            if (loaderErrors.Count == countBefore)
+            {
+                loaderErrors.Add($"{assemblyName}: {ex.Message}");
+            }
+
             return ex.Types.OfType<Type>().ToArray();
         }
+    }
+
+    /// <summary>Builds the error for a type lookup that found nothing while some types failed to load.</summary>
+    /// <param name="name">The type name that was looked up.</param>
+    /// <param name="loaderErrors">The loader errors, one line each.</param>
+    /// <returns>The error (code <c>type_load_failed</c>); its message names the first distinct loader errors.</returns>
+    private static BridgeRequestException TypeLoadFailed(string name, List<string> loaderErrors)
+    {
+        string[] distinctErrors = loaderErrors.Distinct(StringComparer.Ordinal).ToArray();
+        IEnumerable<string> shownErrors = distinctErrors.Take(MaxReportedLoaderErrors);
+        string message =
+            $"No loaded type is named '{name}', and types of the loaded assemblies failed to load, so it may be one of " +
+            $"them. Loader errors: {string.Join("; ", shownErrors)}";
+        int notShown = distinctErrors.Length - MaxReportedLoaderErrors;
+        if (notShown > 0)
+        {
+            message += $"; {notShown} more";
+        }
+
+        return new BridgeRequestException("type_load_failed", message + ".");
     }
 
     /// <summary>Resolves a dotted member path to the members it names.</summary>

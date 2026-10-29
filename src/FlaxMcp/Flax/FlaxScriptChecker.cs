@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -116,7 +117,7 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
     /// <param name="outputs">The fresh output of each module compiled so far, by the path Flax.Build writes.</param>
     /// <param name="cancellationToken">Stops the compiles.</param>
     /// <returns>Each module's compile with its duration.</returns>
-    private async Task<FlaxTimedRun[]> CompileLayerAsync(
+    private static async Task<FlaxTimedRun[]> CompileLayerAsync(
         FlaxCompilerTool compiler,
         List<FlaxCscModule> ready,
         string scratch,
@@ -135,7 +136,7 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
     /// <param name="outputs">The fresh output of each module compiled so far.</param>
     /// <param name="cancellationToken">Stops the compile.</param>
     /// <returns>The compile with its duration.</returns>
-    private async Task<FlaxTimedRun> CompileTimedAsync(
+    private static async Task<FlaxTimedRun> CompileTimedAsync(
         FlaxCompilerTool compiler,
         FlaxCscModule module,
         string scratch,
@@ -154,7 +155,7 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
     /// <param name="outputs">The fresh output of each module compiled so far.</param>
     /// <param name="cancellationToken">Stops the compile.</param>
     /// <returns>The compile's outcome.</returns>
-    private async Task<FlaxModuleRun> CompileAsync(
+    private static async Task<FlaxModuleRun> CompileAsync(
         FlaxCompilerTool compiler,
         FlaxCscModule module,
         string scratch,
@@ -166,7 +167,7 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
         string outPath = Path.Combine(folder, Path.GetFileName(module.OutPath));
         string sarif = Path.Combine(folder, module.Name + ".sarif");
         File.Delete(sarif);
-        IReadOnlyList<string> sources = Sources(module);
+        string[] sources = Sources(module);
         string response = BuildResponse(module, sources, outputs, outPath, sarif);
         string responsePath = Path.Combine(folder, module.Name + ".check.response");
         await File.WriteAllTextAsync(responsePath, response, cancellationToken);
@@ -175,19 +176,19 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
         FlaxProcessResult process = await FlaxProcessRunner.RunAsync(compiler.DotnetHost, arguments, folder, CompileTimeout, cancellationToken);
         if (process.TimedOut)
         {
-            return TimedOutRun(outPath, sources.Count);
+            return TimedOutRun(outPath, sources.Length);
         }
 
         if (!File.Exists(sarif))
         {
-            return NoDiagnosticsRun(outPath, sources.Count, process);
+            return NoDiagnosticsRun(outPath, sources.Length, process);
         }
 
         string sarifText = await File.ReadAllTextAsync(sarif, cancellationToken);
         IReadOnlyList<FlaxCompilerDiagnostic> diagnostics = FlaxSarifReader.Read(sarifText);
         FlaxCompilerDiagnostic[] errors = diagnostics.Where(diagnostic => diagnostic.Severity == "error").ToArray();
         FlaxCompilerDiagnostic[] warnings = diagnostics.Where(diagnostic => diagnostic.Severity == "warning").ToArray();
-        return new FlaxModuleRun(outPath, process.ExitCode, sources.Count, errors, warnings, null);
+        return new FlaxModuleRun(outPath, process.ExitCode, sources.Length, errors, warnings, null);
     }
 
     /// <summary>The run of a compile that did not finish in time.</summary>
@@ -246,11 +247,11 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
             response.AppendLine(FreshOption(option, outputs));
         }
 
-        response.AppendLine($"/out:\"{outPath}\"");
-        response.AppendLine($"/errorlog:\"{sarif}\",version=2.1");
+        response.AppendLine(CultureInfo.InvariantCulture, $"/out:\"{outPath}\"");
+        response.AppendLine(CultureInfo.InvariantCulture, $"/errorlog:\"{sarif}\",version=2.1");
         foreach (string source in sources)
         {
-            response.AppendLine($"\"{source}\"");
+            response.AppendLine(CultureInfo.InvariantCulture, $"\"{source}\"");
         }
 
         return response.ToString();
@@ -287,7 +288,7 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
     /// The module's sources now: the listed files outside its folder (generated ones) that still exist, and every .cs
     /// file in its folder except Flax.Build scripts and the folders of other modules.
     /// </summary>
-    private static IReadOnlyList<string> Sources(FlaxCscModule module)
+    private static string[] Sources(FlaxCscModule module)
     {
         if (module.Folder is null)
         {
@@ -471,7 +472,7 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
     /// <param name="modules">Every module.</param>
     /// <returns>The layers, the ones with no dependency first.</returns>
     /// <exception cref="InvalidOperationException">The modules reference each other in a cycle.</exception>
-    private static IReadOnlyList<IReadOnlyList<FlaxCscModule>> Layers(IReadOnlyList<FlaxCscModule> modules)
+    private static IReadOnlyList<FlaxCscModule>[] Layers(List<FlaxCscModule> modules)
     {
         Dictionary<string, FlaxCscModule> byOutput = modules.ToDictionary(module => module.OutPath, StringComparer.OrdinalIgnoreCase);
         Dictionary<FlaxCscModule, int> depths = [];
@@ -559,7 +560,7 @@ public sealed partial class FlaxScriptChecker : IFlaxScriptChecker
     /// <param name="depths">The depths found so far.</param>
     /// <returns>The module reached twice.</returns>
     private static FlaxCscModule CycleModule(
-        IReadOnlyList<FlaxCscModule> modules,
+        List<FlaxCscModule> modules,
         Dictionary<string, FlaxCscModule> byOutput,
         Dictionary<FlaxCscModule, int> depths)
     {
@@ -987,7 +988,7 @@ public sealed partial record FlaxCscModule(
             return Environment.Version.Major;
         }
 
-        return int.Parse(pack.Groups[1].Value);
+        return int.Parse(pack.Groups[1].Value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>Matches a quoted path.</summary>

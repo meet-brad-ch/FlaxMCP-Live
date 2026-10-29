@@ -43,10 +43,7 @@ public static class GameCommands
             throw new ArgumentException($"Game command '{name}' needs a description.", nameof(description));
         }
 
-        if (handler is null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         string owner = OwnerOf(handler);
         var info = new GameCommandInfo(name, description, owner);

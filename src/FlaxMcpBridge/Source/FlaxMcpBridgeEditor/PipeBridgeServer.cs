@@ -8,7 +8,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,84 +15,22 @@ using FlaxEngine;
 using FlaxEditor.Content;
 using FlaxEditor.Surface;
 using FlaxEditor.Windows;
-#if USE_LARGE_WORLDS
-using Real = System.Double;
-#else
-using Real = System.Single;
-#endif
 
 namespace FlaxMcpBridge.Editor;
 
 /// <summary>
-/// Answers bridge requests for one plugin generation. The pipe belongs to the bridge host (Host/), which outlives
-/// script reloads; this class is what each reloaded plugin attaches to it.
+/// Named-pipe bridge transport accepting one client connection at a time and exchanging
+/// newline-delimited JSON messages.
 /// </summary>
 internal sealed partial class PipeBridgeServer : IDisposable
 {
     private const int ProtocolVersion = 19;
-    private static readonly long LoadedUtcTicks = DateTime.UtcNow.Ticks;
     private const int MaxSceneGraphDepth = 32;
     private const int MaxSceneGraphNodes = 500;
     private const double AssetLoadTimeoutMilliseconds = 3500;
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
     private static readonly ConcurrentDictionary<int, MethodInfo> DynamicMethods = new();
-    // Built file of each in-memory assembly, by name and module version: found once per plugin generation.
-    private static readonly ConcurrentDictionary<string, string?> ReferencePaths = new(StringComparer.Ordinal);
     private static int _nextDynamicMethodId;
-    private static volatile bool _detached;
-
-    /// <summary>This plugin generation: its load time in UTC ticks.</summary>
-    public static long Generation => LoadedUtcTicks;
-
-    /// <summary>The bridge protocol this plugin speaks.</summary>
-    public static int Protocol => ProtocolVersion;
-
-    /// <summary>Answers one request line within the request timeout; failures become error responses.</summary>
-    /// <param name="line">The request JSON.</param>
-    /// <returns>The response JSON.</returns>
-    public async Task<string> HandleRequestAsync(string line)
-    {
-        try
-        {
-            var dispatch = DispatchAsync(line);
-            var finished = await Task.WhenAny(dispatch, Task.Delay(RequestTimeout));
-            if (finished != dispatch)
-            {
-                ObserveFault(dispatch);
-                return SerializeError(
-                    ReadRequestId(line),
-                    "request_timeout",
-                    $"The editor action did not complete within {RequestTimeout.TotalSeconds:0} seconds."
-                );
-            }
-
-            return await dispatch;
-        }
-        catch (BridgeRequestException ex)
-        {
-            return SerializeError(ReadRequestId(line), ex.Code, ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return SerializeError(ReadRequestId(line), "request_failed", ex.Message);
-        }
-    }
-
-    /// <summary>
-    /// Queues work for the main thread unless this plugin generation has detached: the engine keeps its queue across
-    /// a script reload, and work queued by the old generation must not act on the reloaded editor.
-    /// </summary>
-    /// <param name="action">The work.</param>
-    private static void OnMainThread(Action action)
-    {
-        Scripting.InvokeOnUpdate(() =>
-        {
-            if (!_detached)
-            {
-                action();
-            }
-        });
-    }
 
     private static async Task<string> DispatchAsync(string requestJson)
     {
@@ -188,30 +125,9 @@ internal sealed partial class PipeBridgeServer : IDisposable
             ),
             "save" => await SaveAsync(),
             "play_mode" => await SetPlayModeAsync(RequireParam(root, "action")),
-            "play_mode_state" => await GetPlayModeStateAsync(),
-            "compile" => await CompileAsync(),
-            "compile_status" => await GetCompileStatusAsync(),
-            "open_scene" => await OpenSceneAsync(RequireParam(root, "path")),
             "screenshot" => await CaptureScreenshotAsync(RequireParam(root, "path")),
             "execute_csharp" => await ExecuteCSharpAsync(RequireParam(root, "code")),
-            "game_commands" => ListGameCommands(),
-            "find_actors" => await FindActorsAsync(
-                OptionalParam(root, "nameContains"), OptionalParam(root, "actorType"), OptionalParam(root, "scriptType"),
-                OptionalIntParam(root, "limit") ?? 50
-            ),
-            "get_member" => await GetMemberAsync(RequireParam(root, "actorId"), OptionalParam(root, "scriptType"), RequireParam(root, "member")),
-            "set_member" => await SetMemberAsync(
-                RequireParam(root, "actorId"), OptionalParam(root, "scriptType"), RequireParam(root, "member"), RequireValueParam(root, "value")
-            ),
-            "invoke_method" => await InvokeMethodAsync(
-                OptionalParam(root, "typeName"), RequireParam(root, "method"), OptionalParam(root, "actorId"),
-                OptionalParam(root, "scriptType"), RequireValueParam(root, "args")
-            ),
-            "add_script" => await AddScriptAsync(
-                RequireParam(root, "actorId"), RequireParam(root, "scriptType"), OptionalIntParam(root, "orderInParent")
-            ),
-            "game_command" => await RunGameCommandAsync(RequireParam(root, "name"), OptionalParam(root, "args") ?? ""),
-            _ => throw new InvalidOperationException($"Unknown method '{method}'"),
+            _ => await DispatchLiveAsync(method, root),
         };
 
         var normalized = NormalizeDynamicResult(result, new HashSet<object>(ReferenceEqualityComparer.Instance), 0);
@@ -1070,15 +986,8 @@ internal sealed partial class PipeBridgeServer : IDisposable
 
             if (surface.Save())
                 throw new InvalidOperationException("The material graph could not be serialized.");
-            // MaterialInfo.Default defaults to ShadingModel.Unlit, which would make Flax render only the
-            // Emissive input and ignore BaseColor/Roughness/Metallic entirely.
-            var info = MaterialInfo.Default;
-            info.ShadingModel = MaterialShadingModel.Lit;
-            if (material.SaveSurface(owner.SurfaceData, info))
+            if (SaveLitSurface(material, owner.SurfaceData))
                 throw new InvalidOperationException("The material graph could not be saved.");
-            // Without an explicit reload, actors that bind this brand-new material right after creation
-            // render it as solid black -- its GPU-side compiled representation isn't picked up otherwise.
-            material.Reload();
         }
         finally
         {
@@ -1378,11 +1287,10 @@ internal sealed partial class PipeBridgeServer : IDisposable
 
     private static Vector3 ReadVector3(JsonElement value)
     {
-        // read as double: Vector3's components are double in an engine built with large worlds
         return new Vector3(
-            (Real)value.GetProperty("x").GetDouble(),
-            (Real)value.GetProperty("y").GetDouble(),
-            (Real)value.GetProperty("z").GetDouble()
+            ReadReal(value.GetProperty("x")),
+            ReadReal(value.GetProperty("y")),
+            ReadReal(value.GetProperty("z"))
         );
     }
 
@@ -1393,8 +1301,7 @@ internal sealed partial class PipeBridgeServer : IDisposable
 
     private static bool IsFinite(Vector3 value)
     {
-        // Vector3's components are float, or double in an engine built with large worlds (USE_LARGE_WORLDS)
-        return double.IsFinite(value.X) && double.IsFinite(value.Y) && double.IsFinite(value.Z);
+        return IsFiniteReal(value.X) && IsFiniteReal(value.Y) && IsFiniteReal(value.Z);
     }
 
     private static object BuildBoxColliderDetails(BoxCollider actor)
@@ -1410,12 +1317,6 @@ internal sealed partial class PipeBridgeServer : IDisposable
     }
 
     private static object BuildVector3(float x, float y, float z)
-    {
-        return new { x, y, z };
-    }
-
-    /// <summary>A double vector: Vector3's components in an engine built with large worlds.</summary>
-    private static object BuildVector3(double x, double y, double z)
     {
         return new { x, y, z };
     }
@@ -1492,9 +1393,9 @@ internal sealed partial class PipeBridgeServer : IDisposable
         var scale = value.GetProperty("scale");
         return new Transform(
             new Vector3(
-                (Real)translation.GetProperty("x").GetDouble(),
-                (Real)translation.GetProperty("y").GetDouble(),
-                (Real)translation.GetProperty("z").GetDouble()
+                ReadReal(translation.GetProperty("x")),
+                ReadReal(translation.GetProperty("y")),
+                ReadReal(translation.GetProperty("z"))
             ),
             new Quaternion(
                 orientation.GetProperty("x").GetSingle(),
@@ -1561,48 +1462,6 @@ internal sealed partial class PipeBridgeServer : IDisposable
                 z = transform.Scale.Z,
             },
         };
-    }
-
-    private static object ListGameCommands()
-    {
-        return new
-        {
-            commands = GameCommands.List()
-                .Select(command => new { name = command.Name, description = command.Description, owner = command.Owner })
-                .ToArray(),
-        };
-    }
-
-    private static Task<object> RunGameCommandAsync(string name, string args)
-    {
-        var command = GameCommands.Find(name) ??
-            throw new BridgeRequestException(
-                "unknown_command",
-                $"No game command '{name}' is registered. Registered: " +
-                $"{string.Join(", ", GameCommands.List().Select(info => info.Name).DefaultIfEmpty("none"))}."
-            );
-        var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-        OnMainThread(() =>
-        {
-            var watch = System.Diagnostics.Stopwatch.StartNew();
-            try
-            {
-                var result = command.Handler(args);
-                tcs.TrySetResult(new
-                {
-                    mainThreadId = Globals.MainThreadID,
-                    name,
-                    result,
-                    milliseconds = watch.Elapsed.TotalMilliseconds,
-                    isPlayMode = FlaxEditor.Editor.IsPlayMode,
-                });
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetException(new BridgeRequestException("command_failed", $"{ex.GetType().Name}: {ex.Message}"));
-            }
-        });
-        return tcs.Task;
     }
 
     private static Task<object> InvokeOnUpdateAsync(Func<object> action)
@@ -1672,98 +1531,8 @@ internal sealed partial class PipeBridgeServer : IDisposable
     {
         return InvokeOnUpdateAsync(() =>
         {
-            var editor = FlaxEditor.Editor.Instance;
-            if (FlaxEditor.Editor.IsPlayMode)
-                throw new InvalidOperationException(
-                    "The editor is in play mode: stop it before saving, or the play-time scene is written.");
-            // Changes made through the API do not mark a scene as modified, and SaveAll skips unmodified scenes.
-            foreach (var scene in Level.Scenes)
-                editor.Scene.MarkSceneEdited(scene);
-            editor.SaveAll();
-            return new { mainThreadId = Globals.MainThreadID, saved = true, savedScenes = Level.ScenesCount };
+            return SaveAllScenes();
         });
-    }
-
-    private static async Task<object> GetPlayModeStateAsync()
-    {
-        var state = await ReadPlayModeStateAsync();
-        return new
-        {
-            mainThreadId = state.MainThreadId,
-            requestedAction = "state",
-            isPlayMode = state.IsPlayMode,
-            isPaused = state.IsPaused,
-        };
-    }
-
-    private static object CompileStatus() => new
-    {
-        isCompiling = FlaxEditor.ScriptsBuilder.IsCompiling,
-        lastCompilationFailed = FlaxEditor.ScriptsBuilder.LastCompilationFailed,
-        compilationsCount = FlaxEditor.ScriptsBuilder.CompilationsCount,
-        loadedUtcTicks = LoadedUtcTicks,
-        // The editor's file watcher marks changed sources; while set, the editor compiles (and reloads) again on its own.
-        isSourceDirty = FlaxEditor.ScriptsBuilder.IsSourceDirty,
-    };
-
-    private static Task<object> CompileAsync()
-    {
-        return InvokeOnUpdateAsync(() =>
-        {
-            if (FlaxEditor.Editor.IsPlayMode)
-                throw new InvalidOperationException("The editor is in play mode: stop it before compiling.");
-            var before = CompileStatus();
-            // The editor compiles changed sources on its own (its file watcher marks them, then it compiles and
-            // reloads): a compile on top of that reloads a second time. Changed sources go through the editor's own
-            // check; only unchanged ones are compiled explicitly.
-            if (FlaxEditor.ScriptsBuilder.IsCompiling)
-                return before;
-            if (FlaxEditor.ScriptsBuilder.IsSourceDirty)
-                FlaxEditor.ScriptsBuilder.CheckForCompile();
-            else
-                FlaxEditor.ScriptsBuilder.Compile();
-            return before;
-        });
-    }
-
-    private static Task<object> GetCompileStatusAsync()
-    {
-        return InvokeOnUpdateAsync(CompileStatus);
-    }
-
-    private static async Task<object> OpenSceneAsync(string path)
-    {
-        var item = (AssetItem)await InvokeOnUpdateAsync(() =>
-        {
-            if (FlaxEditor.Editor.IsPlayMode)
-                throw new InvalidOperationException("The editor is in play mode: stop it before opening a scene.");
-            var full = Path.IsPathRooted(path) ? path : Path.Combine(Globals.ProjectContentFolder, path);
-            var found = FlaxEditor.Editor.Instance.ContentDatabase.Find(full) as AssetItem ??
-                throw new FileNotFoundException($"No scene asset at '{full}'.");
-            FlaxEditor.Editor.Instance.Scene.OpenScene(found.ID);
-            return found;
-        });
-        for (var attempt = 0; attempt < 30; attempt++)
-        {
-            var opened = await InvokeOnUpdateAsync(() =>
-            {
-                var scene = Level.Scenes.FirstOrDefault(candidate => candidate.ID == item.ID);
-                if (scene is null)
-                    return (object)null!;
-                return new
-                {
-                    mainThreadId = Globals.MainThreadID,
-                    sceneId = scene.ID.ToString(),
-                    sceneName = scene.Name,
-                    scenes = Level.Scenes.Select(candidate => candidate.Name).ToArray(),
-                };
-            });
-            if (opened is not null)
-                return opened;
-            await Task.Delay(100);
-        }
-
-        throw new TimeoutException($"The scene '{path}' did not finish loading within 3 seconds.");
     }
 
     private static async Task<object> SetPlayModeAsync(string action)
@@ -1778,10 +1547,7 @@ internal sealed partial class PipeBridgeServer : IDisposable
             _ => throw new ArgumentException("Play mode action must be start, stop, pause, or resume."),
         };
 
-        // The request is queued, not awaited: starting play loads the scene on the main thread, which can take longer
-        // than one request may wait; the server polls play_mode_state until the state is reached.
-        var state = await ReadPlayModeStateAsync();
-        OnMainThread(() =>
+        var state = await QueuePlayModeRequestAsync(() =>
         {
             var editor = FlaxEditor.Editor.Instance;
             switch (normalizedAction)
@@ -1799,14 +1565,11 @@ internal sealed partial class PipeBridgeServer : IDisposable
                     editor.Simulation.RequestResumePlay();
                     break;
             }
+
+            return new object();
         });
-        return new
-        {
-            mainThreadId = state.MainThreadId,
-            requestedAction = normalizedAction,
-            isPlayMode = state.IsPlayMode,
-            isPaused = state.IsPaused,
-        };
+
+        return PlayModeResponse(state, normalizedAction);
     }
 
     private static Task<PlayModeState> ReadPlayModeStateAsync()
@@ -1873,7 +1636,7 @@ internal sealed partial class PipeBridgeServer : IDisposable
 
     private static async Task<object> ExecuteCSharpAsync(string code)
     {
-        Task<SnippetExecution>? executionTask = ExecuteInCollectibleContextAsync(code);
+        Task<(object Result, WeakReference LoadContext)>? executionTask = ExecuteInCollectibleContextAsync(code);
         var execution = await executionTask;
         executionTask = null;
         await InvokeOnUpdateAsync(() => new object());
@@ -1888,56 +1651,11 @@ internal sealed partial class PipeBridgeServer : IDisposable
             throw new InvalidOperationException("The dynamic C# assembly could not be unloaded.");
         }
 
-        return new
-        {
-            mainThreadId = execution.Result.MainThreadId,
-            typeName = execution.Result.TypeName,
-            result = execution.Result.Result,
-            compileMilliseconds = execution.CompileMilliseconds,
-            cacheHit = execution.CacheHit,
-            referenceCount = execution.ReferenceCount,
-        };
-    }
-
-    /// <summary>A snippet's run: what it returned, its load context (to check the unload), and its compile.</summary>
-    private sealed record SnippetExecution(
-        SnippetResult Result,
-        WeakReference LoadContext,
-        bool CacheHit,
-        double CompileMilliseconds,
-        int ReferenceCount);
-
-    /// <summary>What a snippet returned, on which thread.</summary>
-    private sealed record SnippetResult(int MainThreadId, string? TypeName, JsonElement? Result);
-
-    private static string? CachedReferencePath(Assembly assembly)
-    {
-        if (!string.IsNullOrEmpty(assembly.Location))
-            return assembly.Location;
-        return ReferencePaths.GetOrAdd(
-            assembly.GetName().Name + "|" + assembly.ManifestModule.ModuleVersionId,
-            _ => ReferencePath(assembly));
-    }
-
-    private static string? ReferencePath(Assembly assembly)
-    {
-        if (!string.IsNullOrEmpty(assembly.Location))
-            return assembly.Location;
-        var name = assembly.GetName().Name;
-        if (name is null)
-            return null;
-        // Each project builds into its own Binaries/ (a plugin such as this bridge too); the engine's are skipped.
-        return FlaxEditor.Editor.Instance.GameProject.GetAllProjects()
-            .Select(project => Path.Combine(project.ProjectFolderPath, "Binaries"))
-            .Where(binaries => Directory.Exists(binaries) &&
-                               !Path.GetFullPath(binaries).StartsWith(Path.GetFullPath(Globals.StartupFolder), StringComparison.OrdinalIgnoreCase))
-            .SelectMany(binaries => Directory.EnumerateFiles(binaries, name + ".dll", SearchOption.AllDirectories))
-            .OrderByDescending(File.GetLastWriteTimeUtc)
-            .FirstOrDefault();
+        return execution.Result;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static async Task<SnippetExecution> ExecuteInCollectibleContextAsync(string code)
+    private static async Task<(object Result, WeakReference LoadContext)> ExecuteInCollectibleContextAsync(string code)
     {
         const string typeName = "FlaxMcpBridge.Dynamic.CodeExecution";
         var source = $$"""
@@ -1957,24 +1675,12 @@ internal sealed partial class PipeBridgeServer : IDisposable
                 }
             }
             """;
-        // A script reload that cannot unload the old assemblies leaves several copies of the game's assemblies loaded; only
-        // the newest copy of each name is referenced, or a snippet naming a game type is ambiguous.
-        var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => !assembly.IsDynamic)
-            .GroupBy(assembly => assembly.GetName().Name)
-            .Select(group => group.Last())
-            .ToArray();
-        // The game's script assemblies are loaded from memory (no Location): they are referenced through their newest
-        // built file, so a snippet can name a game type.
-        var references = loadedAssemblies
-            .Select(CachedReferencePath)
-            .OfType<string>()
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        // The host compiles: its compiler stays loaded across script reloads, and it keeps the images of recent snippets.
-        var image = HostBootstrap.CompileSnippet(source, references, out var cacheHit, out var compileMilliseconds, out var referenceCount);
-        using var assemblyStream = new MemoryStream(image);
-        var loadContext = new AssemblyLoadContext("FlaxMcpDynamic_" + Guid.NewGuid().ToString("N"), isCollectible: true);
+        var loadedAssemblies = NewestAssemblies();
+        using var assemblyStream = new MemoryStream();
+        var compilation = CompileInHost(source, loadedAssemblies, assemblyStream);
+
+        assemblyStream.Position = 0;
+        var loadContext = new AssemblyLoadContext(compilation.AssemblyName, isCollectible: true);
         Func<AssemblyLoadContext, AssemblyName, Assembly?> resolver = (_, assemblyName) => loadedAssemblies.FirstOrDefault(
             assembly => AssemblyName.ReferenceMatchesDefinition(assembly.GetName(), assemblyName)
         );
@@ -1989,8 +1695,8 @@ internal sealed partial class PipeBridgeServer : IDisposable
             DynamicMethods[methodId] = method;
             try
             {
-                var result = (SnippetResult)await InvokeOnUpdateAsync(() => ExecuteDynamicMethod(methodId));
-                return new SnippetExecution(result, loadContextReference, cacheHit, compileMilliseconds, referenceCount);
+                var result = await InvokeOnUpdateAsync(() => ExecuteDynamicMethod(methodId));
+                return (SnippetResponse(result, compilation), loadContextReference);
             }
             finally
             {
@@ -2014,10 +1720,14 @@ internal sealed partial class PipeBridgeServer : IDisposable
         try
         {
             var result = method.Invoke(null, null);
-            return new SnippetResult(
-                checked((int)Globals.MainThreadID),
-                result?.GetType().FullName,
-                result is null ? null : SerializeDynamicResult(result));
+            return new
+            {
+                mainThreadId = checked((int)Globals.MainThreadID),
+                typeName = result?.GetType().FullName,
+                result = result is null ?
+                    (JsonElement?)null :
+                    SerializeDynamicResult(result),
+            };
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
         {
@@ -2100,11 +1810,5 @@ internal sealed partial class PipeBridgeServer : IDisposable
                 visited.Remove(value);
             }
         }
-    }
-
-    /// <summary>Marks this generation detached: work it queued for the main thread is skipped.</summary>
-    public void Dispose()
-    {
-        _detached = true;
     }
 }

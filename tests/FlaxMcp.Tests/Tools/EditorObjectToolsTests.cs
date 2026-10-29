@@ -47,6 +47,22 @@ public sealed class EditorObjectToolsTests
         Assert.Equal("MaterialBuilder|BuildAll|||[]", client.Last);
     }
 
+    /// <summary>
+    /// The default empty argument list stays usable after the call, although the tool disposes the document it parsed
+    /// it from: the bridge may serialize the arguments after the tool has returned.
+    /// </summary>
+    /// <returns>The test's task.</returns>
+    [Fact]
+    public async Task InvokeMethodAsync_WithoutArgs_SendsArgumentsThatOutliveTheCall()
+    {
+        var client = new StubObjectClient();
+
+        await new EditorObjectTools(client).InvokeMethodAsync("BuildAll", null, null, null, "MaterialBuilder", TestContext.Current.CancellationToken);
+
+        int length = client.LastArgs.GetArrayLength();
+        Assert.Equal(0, length);
+    }
+
     [Fact]
     public async Task GetMemberAsync_WithoutMember_Throws()
     {
@@ -57,6 +73,9 @@ public sealed class EditorObjectToolsTests
     private sealed class StubObjectClient : IFlaxEditorObjectClient
     {
         public string? Last { get; private set; }
+
+        /// <summary>The arguments element of the last InvokeMethodAsync call, kept as the bridge received it.</summary>
+        public JsonElement LastArgs { get; private set; }
 
         public Task<FlaxFoundActors> FindActorsAsync(
             string? nameContains, string? actorType, string? scriptType, int limit, CancellationToken cancellationToken = default)
@@ -82,6 +101,7 @@ public sealed class EditorObjectToolsTests
             string? typeName, string method, string? actorId, string? scriptType, JsonElement args, CancellationToken cancellationToken = default)
         {
             Last = $"{typeName}|{method}|{actorId}|{scriptType}|{args.GetRawText()}";
+            LastArgs = args;
             return Task.FromResult(new FlaxMethodResult(1, method, null, null));
         }
 

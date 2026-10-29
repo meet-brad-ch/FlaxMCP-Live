@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using FlaxMcp.Configuration;
 using FlaxMcp.Flax;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
@@ -9,36 +10,22 @@ namespace FlaxMcp.Tools;
 [McpServerToolType]
 public sealed class EditorTools
 {
-    private static readonly TimeSpan PlayModeDeadline = TimeSpan.FromSeconds(35);
-    private static readonly TimeSpan CompileDeadline = TimeSpan.FromSeconds(125);
     private readonly IFlaxBridgeClient _bridgeClient;
     private readonly FlaxJobManager _jobs;
-    private readonly IFlaxScriptChecker _checker;
 
-    public EditorTools(IFlaxBridgeClient bridgeClient, FlaxJobManager jobs, IFlaxScriptChecker checker)
+    public EditorTools(IFlaxBridgeClient bridgeClient)
+        : this(bridgeClient, new FlaxJobManager())
+    {
+    }
+
+    /// <summary>Creates the tools with the server's job manager, which runs play mode changes as exclusive jobs.</summary>
+    /// <param name="bridgeClient">Reaches the live editor.</param>
+    /// <param name="jobs">The server's job manager.</param>
+    [ActivatorUtilitiesConstructor]
+    public EditorTools(IFlaxBridgeClient bridgeClient, FlaxJobManager jobs)
     {
         _bridgeClient = bridgeClient;
         _jobs = jobs;
-        _checker = checker;
-    }
-
-    /// <summary>Runs an editor operation as an exclusive job and waits for it up to its deadline.</summary>
-    private async Task<T> RunAsJobAsync<T>(
-        string kind,
-        Func<FlaxJobProgress, Task<T>> run,
-        TimeSpan deadline,
-        IProgress<ProgressNotificationValue>? progress,
-        CancellationToken cancellationToken) where T : class
-    {
-        var handle = _jobs.Start(kind, exclusive: true, async (jobProgress, _) => await run(jobProgress));
-        var state = await _jobs.WaitAsync(handle.JobId, deadline, progress, cancellationToken);
-        return state.Status switch
-        {
-            "succeeded" => (T)state.Result!,
-            "running" => throw new McpException(
-                $"{kind} is still running as {handle.JobId} after {deadline.TotalSeconds:0} s; wait for it with job_wait."),
-            _ => throw new McpException(state.Error ?? $"{kind} ended as {state.Status}."),
-        };
     }
 
     [McpServerTool(Name = "editor_scene_graph", ReadOnly = true, UseStructuredContent = true)]
@@ -285,13 +272,14 @@ public sealed class EditorTools
     )]
     public Task<FlaxEditorPlayModeResult> SetPlayModeAsync(
         [Description("Play mode action: start, stop, pause, or resume.")] string action,
-        IProgress<ProgressNotificationValue>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken,
+        IProgress<ProgressNotificationValue>? progress = null)
     {
-        return RunAsJobAsync(
+        return EditorJobRunner.RunAsync(
+            _jobs,
             "play_mode_" + action.ToLowerInvariant(),
             jobProgress => _bridgeClient.SetPlayModeAsync(action, CancellationToken.None, jobProgress),
-            PlayModeDeadline,
+            EditorJobRunner.PlayModeDeadline,
             progress,
             cancellationToken);
     }
@@ -320,53 +308,6 @@ public sealed class EditorTools
         }
 
         return _bridgeClient.CaptureScreenshotAsync(resolvedPath, cancellationToken);
-    }
-
-    [McpServerTool(Name = "editor_compile", UseStructuredContent = true)]
-    [Description(
-        "Compiles the project's scripts and returns when the editor has reloaded and settled. The scripts are first " +
-        "compiled outside the editor with the compiler arguments Flax.Build last used (build_check_scripts): errors " +
-        "come back at once, structured (file, line, column, code), and the editor is not touched. A clean check goes on " +
-        "to the editor's compile; its outcome is reloaded, unchanged or failed (build tool lines in BuildErrors). Check " +
-        "says how the check went (passed, failed, or unavailable with the reason). Stops play mode first."
-    )]
-    public Task<FlaxEditorCompileResult> CompileAsync(
-        IProgress<ProgressNotificationValue>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        return RunAsJobAsync(
-            "compile",
-            jobProgress => FlaxCheckedCompile.RunAsync(_checker, _bridgeClient, jobProgress, CancellationToken.None),
-            CompileDeadline,
-            progress,
-            cancellationToken);
-    }
-
-    [McpServerTool(Name = "editor_open_scene", UseStructuredContent = true)]
-    [Description(
-        "Opens a scene in the live Flax Editor and returns when it has loaded. The path is absolute or relative to " +
-        "the project's Content folder (for example Scenes/Main.scene). Refused during play mode."
-    )]
-    public Task<FlaxEditorOpenSceneResult> OpenSceneAsync(
-        [Description("Scene asset path, absolute or relative to Content/, ending in .scene.")] string path,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return _bridgeClient.OpenSceneAsync(path, cancellationToken);
-    }
-
-    [McpServerTool(Name = "editor_host_status", ReadOnly = true, UseStructuredContent = true)]
-    [Description(
-        "Returns the state of the bridge host, the pipe server that outlives script reloads: its version and start " +
-        "time, the attached plugin generation, attach and detach counts, the editor's memory and garbage collections, " +
-        "and how many old plugin load contexts are still alive (reloads that leak). collect=true runs a full garbage " +
-        "collection first so that count is a measurement; it takes long on a large heap."
-    )]
-    public Task<FlaxBridgeHostStatus> GetHostStatusAsync(
-        [Description("Run a full garbage collection before counting the old plugin load contexts.")] bool collect = false,
-        CancellationToken cancellationToken = default)
-    {
-        return _bridgeClient.GetHostStatusAsync(collect, cancellationToken);
     }
 
     [McpServerTool(Name = "editor_execute_csharp", UseStructuredContent = true)]

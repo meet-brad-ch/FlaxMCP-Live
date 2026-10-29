@@ -5,8 +5,8 @@ using FlaxEngine;
 namespace FlaxMcpBridge.Editor;
 
 /// <summary>
-/// Editor plugin for FlaxMCP: attaches this plugin generation's request handler to the bridge host, the named-pipe
-/// server that outlives script reloads, so an external MCP server process can query and drive the editor.
+/// Spike editor plugin for FlaxMCP: hosts a local named-pipe bridge so an external MCP server
+/// process can query and drive a running Flax Editor session.
 /// </summary>
 /// <seealso cref="FlaxEditor.EditorPlugin" />
 public class BridgeEditorPlugin : EditorPlugin
@@ -24,8 +24,7 @@ public class BridgeEditorPlugin : EditorPlugin
         try
         {
             _server = new PipeBridgeServer();
-            HostBootstrap.Attach(PipeBridgeServer.Generation, PipeBridgeServer.Protocol, _server.HandleRequestAsync);
-            Scripting.Exit += OnExit;
+            _server.Start();
             Debug.Log($"[FlaxMcpBridge] Attached to the bridge host (generation {PipeBridgeServer.Generation}).");
         }
         catch (Exception ex)
@@ -37,19 +36,9 @@ public class BridgeEditorPlugin : EditorPlugin
     /// <inheritdoc />
     public override void Deinitialize()
     {
-        Scripting.Exit -= OnExit;
-        if (_server is not null)
-        {
-            HostBootstrap.Detach(PipeBridgeServer.Generation);
-            _server.Dispose();
-            _server = null;
-        }
+        _server?.Dispose();
+        _server = null;
 
         base.Deinitialize();
-    }
-
-    private static void OnExit()
-    {
-        HostBootstrap.Shutdown();
     }
 }

@@ -28,3 +28,10 @@ First release of the independent fork of [eXoz00rd/FlaxMCP](https://github.com/e
 ### Changed
 - Package id `FlaxMcp-Live`, tool command `flax-mcp-live`.
 - `server_info` reports the version with its label.
+- A type lookup in an assembly whose types did not all load answers `type_load_failed` with the loader errors,
+  instead of `unknown_type`.
+- The fork releases with `.github/workflows/release-live.yml`; upstream's `release.yml` runs only in upstream's repository.
+
+### Fixed
+- `editor_invoke_method` without arguments no longer keeps a pooled JSON buffer after the call.
+- Culture-independent number formatting and parsing in the script checker.

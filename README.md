@@ -291,16 +291,17 @@ git switch -c sync-upstream main
 git merge upstream/main
 ```
 
-Expect conflicts only where both sides changed the same code. See [CONTRIBUTING](CONTRIBUTING.md#staying-in-sync-with-upstream).
+Our code lives in files that upstream does not have, joined to upstream code by a few hook lines, so a merge conflicts only where upstream changes one of them. See [MAINTAINING](MAINTAINING.md#staying-in-sync-with-upstream).
 
 ## Versions
 
-FlaxMCP-Live uses [Semantic Versioning](https://semver.org). The [CHANGELOG](CHANGELOG.md) lists every release.
+FlaxMCP-Live uses [Semantic Versioning](https://semver.org). The [CHANGELOG](CHANGELOG.md) lists every release, and [MAINTAINING](MAINTAINING.md) gives the release steps.
 The server and the bridge plugin must come from the same release.
 
 ## Contributing
 
-- **[Contributing Guide](CONTRIBUTING.md)** — branch flow, commits, code style, CI, releases
+- **[Contributing Guide](CONTRIBUTING.md)** — branch flow, commits, code style, CI
+- **[Maintaining](MAINTAINING.md)** — versions, releases, upstream sync, seams
 - **[Task Conventions](CONVENTIONS.md)** — writing issues and definitions of done
 - **[Agent Instructions](AGENTS.md)** — single source of truth for AI tools working on this repository
 

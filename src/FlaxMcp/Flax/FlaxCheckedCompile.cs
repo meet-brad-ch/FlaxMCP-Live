@@ -26,7 +26,7 @@ public static class FlaxCheckedCompile
             return new FlaxEditorCompileResult("failed", check.Seconds, check.Errors, [], 0, "failed");
         }
 
-        FlaxEditorCompileResult compiled = await bridgeClient.CompileAsync(cancellationToken, progress);
+        FlaxEditorCompileResult compiled = await bridgeClient.CompileAsync(progress, cancellationToken);
         string checkNote = check.Status;
         if (check.Status == "unavailable")
         {
