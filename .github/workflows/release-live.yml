@@ -36,4 +36,5 @@ jobs:
         run: |
           prerelease=""
           case "${GITHUB_REF_NAME}" in *-*) prerelease="--prerelease" ;; esac
-          gh release create "${GITHUB_REF_NAME}" artifacts/*.nupkg --title "FlaxMCP-Live ${GITHUB_REF_NAME#v}" --notes-file notes.md $prerelease
+          # No assets: the public repository offers no archive downloads. The pack step above checks that the package builds.
+          gh release create "${GITHUB_REF_NAME}" --title "FlaxMCP-Live ${GITHUB_REF_NAME#v}" --notes-file notes.md $prerelease

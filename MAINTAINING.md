@@ -21,8 +21,9 @@ never changes tools.
      not push.
   3. Push the commit and the tag.
   4. The workflow `release-live.yml` compares the tag with the project version. Then it builds, tests and packs. It
-     makes the GitHub release, with the changelog section as the notes and the `.nupkg` as the only asset. A version
-     with a label, for example `-preview.1`, becomes a pre-release.
+     makes the GitHub release, with the changelog section as the notes. The release has no assets: the workflow packs the
+     `.nupkg` only as a check, and the public repository offers no archive downloads. A version with a label, for
+     example `-preview.1`, becomes a pre-release.
 
 ## Staying in sync with upstream
 
