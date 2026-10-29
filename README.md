@@ -32,6 +32,7 @@ The name tells you that this fork is about this live loop.
 | Material creation and material instance parameters | Game commands: your game registers named commands, the client calls them |
 | An optional gated C# execution tool | Compile checks in under a second, also while the editor plays |
 | Read-only mode and toolset selection | Read and write any member of an actor or script. Find actors by name, type or script |
+| | An agent skill that teaches an AI agent to use the server ([`skills/flaxmcp-live`](skills/flaxmcp-live)) |
 | | Large-world engine support (double-precision vectors), Flax 1.13 |
 
 Use an IDE-integrated MCP, such as Rider, for C# navigation and refactoring. FlaxMCP-Live does the engine operations,
@@ -244,6 +245,19 @@ In Rider's MCP server settings, create a stdio server with the same command and 
 `tools/mcp_roundtrip.py` runs tool calls against a server build over stdio from the command line. Prefer absolute paths because GUI clients do not necessarily inherit the shell working directory.
 
 Call `server_info`, `project_info`, and `flax_status` as a basic verification.
+
+### 4. Give your AI agent the usage skill
+
+The folder [`skills/flaxmcp-live`](skills/flaxmcp-live) is an agent skill. It tells an AI agent how to use the server:
+the order of the calls, the two kinds of IDs, the traps of the live editor, worked workflows and all 57 tools with their
+parameters. For Claude Code, copy the folder to `~/.claude/skills/` (for all your projects) or to `.claude/skills/` in
+your Flax project. Other agents that read `SKILL.md` files can use the same folder.
+
+After a server change, make the tool reference again:
+
+```bash
+python skills/flaxmcp-live/scripts/dump_tools.py --project "D:/Projects/YourFlaxProject"
+```
 
 ## Configuration
 

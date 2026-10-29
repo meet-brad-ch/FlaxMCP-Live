@@ -66,6 +66,7 @@ src/FlaxMcpBridge/      Flax plugin project (own .flaxproj) — the live-editor 
   Host/                        bridge host, compiled at runtime: pipe, event ring, snippet compiler
 tests/FlaxMcp.Tests/    xunit.v3, mirrors src/FlaxMcp/ structure
 tools/                  publish, MCP round trip, version, release, quality and upstream-merge scripts
+skills/flaxmcp-live/    the agent skill for users of the server (regenerate references/tools-reference.md after a tool change)
 ```
 
 A file with the name `<Class>.Live.cs` is a `partial` part that has this fork's members of an upstream class. See `MAINTAINING.md`.

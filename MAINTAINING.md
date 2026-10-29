@@ -17,10 +17,12 @@ never changes tools.
   it in each commit that changes a pipe message. The server and the bridge plugin must come from the same release.
 - To make a release:
   1. Add a section `## [x.y.z]` to `CHANGELOG.md`.
-  2. Run `tools/release.sh x.y.z` on a clean `main`. It makes the commit "Release x.y.z" and the tag `vx.y.z`. It does
+  2. If a tool changed, make the skill's tool reference again:
+     `python skills/flaxmcp-live/scripts/dump_tools.py --project <a Flax project>`.
+  3. Run `tools/release.sh x.y.z` on a clean `main`. It makes the commit "Release x.y.z" and the tag `vx.y.z`. It does
      not push.
-  3. Push the commit and the tag.
-  4. The workflow `release-live.yml` compares the tag with the project version. Then it builds, tests and packs. It
+  4. Push the commit and the tag.
+  5. The workflow `release-live.yml` compares the tag with the project version. Then it builds, tests and packs. It
      makes the GitHub release, with the changelog section as the notes. The release has no assets: the workflow packs the
      `.nupkg` only as a check, and the public repository offers no archive downloads. A version with a label, for
      example `-preview.1`, becomes a pre-release.

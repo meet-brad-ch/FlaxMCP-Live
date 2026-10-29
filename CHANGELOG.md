@@ -6,6 +6,12 @@ version never changes tools.
 
 ## [Unreleased]
 
+## [0.2.0-preview.2]
+
+### Added
+- The agent skill `skills/flaxmcp-live`: how an AI agent uses the server, workflows, Flax traps and a generated
+  reference of all 57 tools. The README tells how to install it.
+
 ## [0.2.0-preview.1]
 
 First release of the independent fork of [eXoz00rd/FlaxMCP](https://github.com/eXoz00rd/FlaxMCP) 0.1.0.
