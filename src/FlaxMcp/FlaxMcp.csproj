@@ -9,7 +9,7 @@
     <ToolCommandName>flax-mcp-live</ToolCommandName>
     <PackageId>FlaxMcp-Live</PackageId>
     <VersionPrefix>0.2.0</VersionPrefix>
-    <VersionSuffix>preview.1</VersionSuffix>
+    <VersionSuffix>preview.2</VersionSuffix>
     <Description>MCP server for Flax Engine projects with a live editor bridge: unattended compile, play and test loops.</Description>
     <PackageTags>mcp;mcp-server;flax;flax-engine;game-development;live-editor</PackageTags>
     <RepositoryUrl>https://github.com/meet-brad-ch/FlaxMCP-Live</RepositoryUrl>
