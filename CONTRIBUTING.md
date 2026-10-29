@@ -53,7 +53,7 @@ Bulleted checklist of how the change was verified (build, tests, what was observ
 - `Directory.Build.props` sets `Nullable`, `ImplicitUsings`, and **`TreatWarningsAsErrors`** for everything under `FlaxMcp.slnx` — a new warning fails the build, not just CI.
 - `.editorconfig` at the repo root governs formatting; run `dotnet format --verify-no-changes` before opening a PR.
 - `.gitattributes` pins `eol=crlf` for the whole repo — line endings are handled at checkout regardless of a contributor's local `core.autocrlf` setting. Don't fight it by hand.
-- No comments in committed code unless the code genuinely cannot express the intent on its own.
+- In the files that this fork added, write a `///` doc comment on each class, method and member. Elsewhere, no comments in committed code unless the code genuinely cannot express the intent on its own.
 - Guard expensive logging: `if (_logger.IsEnabled(LogLevel.X))`.
 - Async tests using a `CancellationTokenSource` pass `TestContext.Current.CancellationToken`.
 - Never use primary constructors for services with injected dependencies.
@@ -68,10 +68,13 @@ Bulleted checklist of how the change was verified (build, tests, what was observ
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `ubuntu-latest` for pushes to `main` and pull requests:
 
-1. Restore
-2. `dotnet format --verify-no-changes`
-3. Build (`FlaxMcp.slnx`, Release)
-4. Test
+1. Check the release version (`tools/check_version.sh`)
+2. Restore
+3. `dotnet format --verify-no-changes`
+4. Build (`FlaxMcp.slnx`, Release)
+5. Test
+
+[`.github/workflows/quality.yml`](.github/workflows/quality.yml) runs `tools/quality.py`: the recommended analyzers and lizard (complexity below 10, functions up to 60 lines) on the files that this fork added, and the coverage of these files. [`release-live.yml`](.github/workflows/release-live.yml) makes a release from a `v*` tag. See `MAINTAINING.md`.
 
 CI must be green before merging. It only covers `FlaxMcp.slnx` — `src/FlaxMcpBridge` needs a real Flax Engine install and isn't (and can't easily be) covered by a hosted runner; verify it manually per `AGENTS.md`.
 
@@ -80,4 +83,5 @@ CI must be green before merging. It only covers `FlaxMcp.slnx` — `src/FlaxMcpB
 - `dotnet build FlaxMcp.slnx` — no new warnings
 - `dotnet test FlaxMcp.slnx` — all tests green
 - `dotnet format --verify-no-changes` — clean
+- `python tools/quality.py` — no findings in the files that this fork added
 - If the change touches `src/FlaxMcpBridge`, verify it against a real (ideally GUI, not headless) Flax Editor session — see `AGENTS.md` for what headless mode can't prove

@@ -5,13 +5,22 @@
 
 MCP (Model Context Protocol) server for **[Flax Engine](https://flaxengine.com)** projects, built with **.NET 10 / C#**
 on the official [ModelContextProtocol C# SDK](https://www.nuget.org/packages/ModelContextProtocol).
-It gives an AI client a complete, unattended loop through the live editor: check, compile, play, drive the game, read the result.
+An AI client uses it to work through the live editor without manual steps: check, compile, play, control the game,
+read the result.
 
 FlaxMCP-Live is an independent fork of [eXoz00rd/FlaxMCP](https://github.com/eXoz00rd/FlaxMCP) by Sebastian Rokicki (MIT).
-It keeps all upstream tools and adds 16 more. The code keeps the upstream names (`FlaxMcp` namespaces, the
-`FlaxMcpBridge` plugin), so upstream changes can still be merged. See [Staying in sync with upstream](#staying-in-sync-with-upstream).
+It keeps all upstream tools and adds 16 tools. The code keeps the upstream names (`FlaxMcp` namespaces, the
+`FlaxMcpBridge` plugin). Thus you can merge upstream changes. See [Staying in sync with upstream](#staying-in-sync-with-upstream).
 
-> **Status:** preview (see [CHANGELOG](CHANGELOG.md)). You install from source. No NuGet package is published yet.
+**Why "Live":** the added tools work on the running editor and the running game, not on files:
+
+- The bridge stays connected when the editor reloads the scripts.
+- A client waits for the editor's events. It does not poll.
+- A client calls commands in the game while the game plays.
+
+The name tells you that this fork is about this live loop.
+
+> **Status:** preview (see [CHANGELOG](CHANGELOG.md)). You install from source. There is no NuGet package yet.
 
 ## What you get
 
@@ -22,15 +31,15 @@ It keeps all upstream tools and adds 16 more. The code keeps the upstream names 
 | Live editor tools: actors, selection, transforms, colliders, static models, save, play mode, screenshots | Editor events and waiting: no polling, no sleeps |
 | Material creation and material instance parameters | Game commands: your game registers named commands, the client calls them |
 | An optional gated C# execution tool | Compile checks in under a second, also while the editor plays |
-| Read-only mode and toolset selection | Read and write any member of an actor or script; find actors by name, type or script |
+| Read-only mode and toolset selection | Read and write any member of an actor or script. Find actors by name, type or script |
 | | Large-world engine support (double-precision vectors), Flax 1.13 |
 
-C# navigation and refactoring remain the job of an IDE-integrated MCP such as Rider. FlaxMCP-Live focuses on engine
-operations and editor state that a conventional code model cannot see.
+Use an IDE-integrated MCP, such as Rider, for C# navigation and refactoring. FlaxMCP-Live does the engine operations,
+and it reads the editor state that a code model cannot see.
 
 ## An unattended loop
 
-The headline use case: an AI client changes game code and checks the result in the running game, with no manual step.
+The main use: an AI client changes game code and checks the result in the running game. No step is manual.
 
 ```text
 build_check_scripts {}                                   # compile errors in under a second, as SARIF
@@ -45,7 +54,7 @@ editor_play_mode { "action": "stop" }
 logs_errors {}                                           # anything that went wrong on the way
 ```
 
-Every step returns when its work is done. A script reload in the middle does not drop the connection.
+Each step returns when its work is done. A script reload between the steps does not stop the connection.
 
 ## Tools
 
@@ -68,8 +77,8 @@ selected with `FLAX_TOOLSETS`. Tools added in FlaxMCP-Live are in **bold**.
 `editor_execute_csharp` and **`editor_invoke_method`** are additional editor tools that are absent by default. They appear
 only when `FLAX_ALLOW_CODE_EXECUTION=true` and read-only mode is disabled.
 
-Upstream polls a build with `build_status` and `build_result`. FlaxMCP-Live replaces that pair with the job tools, which
-also cover compile, play mode and scene opening.
+Upstream polls a build with `build_status` and `build_result`. FlaxMCP-Live replaces these two tools with the job tools.
+The job tools also run compiles, play mode changes and scene loads.
 
 ### Offline inspection
 
@@ -88,9 +97,9 @@ operation. Script compilation extracts structured diagnostics rather than return
 
 **`build_check_scripts`** compiles the script modules outside the editor, with the compiler arguments Flax.Build last
 wrote (`Cache/Intermediate/<EditorTarget>/<Platform>/<Arch>/<Config>/<Module>.CSharp.response`) and the modules' current
-files, through the .NET SDK's compiler server into a scratch folder. Errors come back as SARIF, structured (file, line,
-column, code), in well under a second, also while the editor is open or playing. `editor_compile` runs this check
-first and only a clean check reaches the editor.
+files. It uses the .NET SDK's compiler server and writes to a scratch folder. It returns the errors as SARIF, with
+file, line, column and code, in less than a second. It also works while the editor is open or in play mode.
+`editor_compile` runs this check first. Only a clean check continues to the editor.
 
 Build tools refuse to start a second editor process while the same project has a live editor session. Close the GUI editor
 before using them. `logs_tail` and `logs_errors` only read the newest project log and remain available while it is running.
@@ -100,15 +109,15 @@ from engine or project-configuration errors.
 
 ### Jobs
 
-`build_game` can take minutes, so it starts a background job and immediately returns its handle:
+`build_game` can take minutes. Thus it starts a background job and returns the job's handle immediately:
 
 1. Call `build_game` with a preset and target, for example `Development` and `Windows`.
-2. Call **`job_wait`** with the returned job ID. It sends progress notifications and returns the state when the job ends or
-   the wait times out. **`job_status`** reads the state without waiting.
-3. The ended job's `result` is the build outcome; a failed job carries its `error`.
+2. Call **`job_wait`** with the job ID. It sends progress notifications. It returns the state when the job ends or when
+   the wait time ends. **`job_status`** reads the state and does not wait.
+3. The `result` of an ended job is the build outcome. A failed job has an `error`.
 
-**`editor_job_start`** runs long editor operations the same way: `compile`, `play_start`, `play_stop`, `play_pause`,
-`play_resume` or `open_scene`. It returns at once. Editor jobs run one at a time.
+**`editor_job_start`** runs long editor operations in the same way: `compile`, `play_start`, `play_stop`, `play_pause`,
+`play_resume` or `open_scene`. It returns immediately. The editor runs one job at a time.
 
 ### Live editor bridge
 
@@ -122,22 +131,27 @@ it requires a GUI editor with a rendered viewport and does not work headlessly. 
 
 #### It survives script reloads
 
-Every script change makes the editor reload its plugins, and a plain plugin would lose its pipe at that moment. In
-FlaxMCP-Live the pipe belongs to a bridge host (`src/FlaxMcpBridge/Host`). The plugin compiles the host once per editor
-process into the Default load context, so reloads do not stop it. Each reloaded plugin attaches to it again. Requests that
-arrive during a reload wait for it. A request that a reload interrupts is answered with `interrupted_by_reload`, and
-read-only requests are sent again. A changed host takes the pipe over from the old one.
+When a script changes, the editor reloads its plugins. A usual plugin loses its pipe at that time. In FlaxMCP-Live, a
+bridge host (`src/FlaxMcpBridge/Host`) owns the pipe:
+
+- The plugin compiles the host one time for each editor process, into the Default load context. Thus a reload does not
+  stop the host.
+- Each reloaded plugin attaches to the host again.
+- A request that arrives during a reload waits until the reload ends.
+- When a reload interrupts a request, the host answers `interrupted_by_reload`. The server sends read-only requests
+  again.
+- A changed host takes control of the pipe from the old host.
 
 **`editor_host_status`** reports the host, the plugin generation, the editor's memory and how many old plugin load
-contexts are still alive. It is the first tool to call when memory grows over many reloads.
+contexts are still alive. Call it first when the memory increases over many reloads.
 
 #### Events and waiting
 
-The host records the editor's events in a ring: managed log lines, compiles, reloads, play mode changes, scene loads and
-saves. **`editor_events`** reads them after a sequence number. **`editor_wait_for`** blocks until an event of a given kind
-(for example `play_begin`, `reload_end` or `log`) arrives, optionally with matching text. A client waits for what it
-needs and does not sleep or poll. **`editor_compile`** waits until the editor has reloaded and settled; the editor also
-compiles changed sources on its own.
+The host records the editor's events in a ring buffer: managed log lines, compiles, reloads, play mode changes, scene
+loads and saves. **`editor_events`** reads the events after a sequence number. **`editor_wait_for`** waits until an
+event of a given kind arrives, for example `play_begin`, `reload_end` or `log`. It can also wait for an event with a
+given text. Thus a client waits for the event that it needs and does not sleep or poll. **`editor_compile`** waits until
+the editor has reloaded and is stable. The editor also compiles changed sources without a request.
 
 #### Game commands
 
@@ -153,20 +167,21 @@ var registration = GameCommands.Register(
 // Dispose the registration when the script is destroyed.
 ```
 
-The handler gets the argument string and returns the result text. The tool names the command's owner by its declaring type.
+The handler gets the argument string and returns the result text. The tool shows the type that declares the handler
+as the owner of the command.
 
 #### Members, actors and snippets
 
 **`editor_find_actors`** finds actors by name, type or script type. **`editor_get_member`** and **`editor_set_member`**
-read and write any member path of an actor or of one of its scripts, for example `Settings.Speed`. **`editor_add_script`**
-attaches a script and **`editor_open_scene`** opens a scene. Tool results are checked against their output schemas.
+read and write a member path of an actor or of one of its scripts, for example `Settings.Speed`. **`editor_add_script`**
+attaches a script. **`editor_open_scene`** opens a scene. The server checks each tool result against its output schema.
 
-`editor_execute_csharp` compiles a snippet in the bridge host, with a compiler that stays loaded across reloads, and runs
-it on the editor main thread. **`editor_invoke_method`** calls one method by name. Both need `FLAX_ALLOW_CODE_EXECUTION`.
+`editor_execute_csharp` compiles a snippet in the bridge host and runs it on the editor main thread. The compiler stays
+loaded across reloads. **`editor_invoke_method`** calls one method by name. Both tools need `FLAX_ALLOW_CODE_EXECUTION`.
 
 #### Large worlds and Flax 1.13
 
-Actor translations and vectors are read as double precision, and the bridge builds against engines with large worlds
+The bridge reads actor translations and vectors as double precision. It builds against engines with large worlds
 enabled. The minimum engine version is 1.13.7012.
 
 ## Requirements
@@ -291,11 +306,13 @@ git switch -c sync-upstream main
 git merge upstream/main
 ```
 
-Our code lives in files that upstream does not have, joined to upstream code by a few hook lines, so a merge conflicts only where upstream changes one of them. See [MAINTAINING](MAINTAINING.md#staying-in-sync-with-upstream).
+The code of this fork is in files that upstream does not have. A few hook lines connect it to upstream code. A merge
+has a conflict only where upstream changes one of these lines. See [MAINTAINING](MAINTAINING.md#staying-in-sync-with-upstream).
 
 ## Versions
 
-FlaxMCP-Live uses [Semantic Versioning](https://semver.org). The [CHANGELOG](CHANGELOG.md) lists every release, and [MAINTAINING](MAINTAINING.md) gives the release steps.
+FlaxMCP-Live uses [Semantic Versioning](https://semver.org). The [CHANGELOG](CHANGELOG.md) lists each release.
+[MAINTAINING](MAINTAINING.md) gives the release steps.
 The server and the bridge plugin must come from the same release.
 
 ## Contributing

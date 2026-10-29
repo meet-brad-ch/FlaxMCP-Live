@@ -22,7 +22,7 @@ public sealed class ServerInfoTool
         var assembly = Assembly.GetExecutingAssembly();
         var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var version = informationalVersion?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
-        return new ServerInfo("FlaxMcp", version);
+        return new ServerInfo("FlaxMCP-Live", version);
     }
 
     [McpServerTool(Name = "flax_status", ReadOnly = true, UseStructuredContent = true)]

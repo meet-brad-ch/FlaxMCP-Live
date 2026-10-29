@@ -41,8 +41,11 @@ The bracketed prefix `[System]` = module/area. Use the module names as they appe
 | `Content` | Content indexing, GUID↔path resolution |
 | `Scene` | Scene/prefab reading (offline, file-based) |
 | `Build` | Process runner, compiler error parsing, `Logs/` reading |
-| `Bridge` | `src/FlaxMcpBridge` — the `EditorPlugin` and its named-pipe transport |
-| `Editor` | Live editor tools that go through the bridge (scene graph, selection, screenshot, play mode) |
+| `Bridge` | `src/FlaxMcpBridge` — the `EditorPlugin`, the bridge host and its named-pipe transport |
+| `Editor` | Live editor tools that go through the bridge (scene graph, selection, screenshot, play mode, members, compile) |
+| `Events` | The editor event ring and the waiting tools |
+| `Jobs` | Long operations as jobs, progress notifications |
+| `Game` | Game commands that a game registers with `GameCommands` |
 | `Packaging` | NuGet packaging, release workflow, `.mcp/server.json` |
 
 Plus the cross-cutting ones: `Architecture`, `Build` (CI/tooling sense — context disambiguates from the Flax build toolset above), `CI`, `Docs`, `Tech`.

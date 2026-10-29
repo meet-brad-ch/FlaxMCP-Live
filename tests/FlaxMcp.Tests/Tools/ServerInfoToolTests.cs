@@ -14,7 +14,7 @@ public partial class ServerInfoToolTests
 
         var info = tool.GetServerInfo();
 
-        Assert.Equal("FlaxMcp", info.Name);
+        Assert.Equal("FlaxMCP-Live", info.Name);
         Assert.False(string.IsNullOrWhiteSpace(info.Version));
     }
 

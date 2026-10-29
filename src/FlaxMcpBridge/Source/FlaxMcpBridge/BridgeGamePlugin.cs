@@ -15,12 +15,12 @@ public class BridgeGamePlugin : GamePlugin
     {
         _description = new PluginDescription
         {
-            Name = "FlaxMcp Bridge",
+            Name = "FlaxMCP-Live Bridge",
             Category = "Other",
-            Author = "FlaxMcp",
-            RepositoryUrl = "https://github.com/eXoz00rd/FlaxMCP",
+            Author = "FlaxMCP-Live",
+            RepositoryUrl = "https://github.com/meet-brad-ch/FlaxMCP-Live",
             Description = "Runtime counterpart of the FlaxMcp editor bridge plugin.",
-            Version = new Version(0, 1, 0),
+            Version = new Version(0, 2, 0),
             IsAlpha = true,
             IsBeta = false,
         };
