@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prepares a release on main: checks the tree and the changelog, writes the version, commits "Release x.y.z" and makes
 # the annotated tag vx.y.z. It pushes nothing: push the commit and the tag when the release is approved, and the
-# release workflow takes over (.github/workflows/release.yml).
+# release workflow takes over (.github/workflows/release-live.yml).
 set -euo pipefail
 version="${1:?usage: release.sh x.y.z[-label]}"
 repo="$(cd "$(dirname "$0")/.." && pwd)"

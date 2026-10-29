@@ -15,13 +15,13 @@ repo="$(cd "$(dirname "$0")/.." && pwd)"
 csproj="$repo/src/FlaxMcp/FlaxMcp.csproj"
 server="$repo/src/FlaxMcp/.mcp/server.json"
 flaxproj="$repo/src/FlaxMcpBridge/FlaxMcpBridge.flaxproj"
-sed -i -E "s|<VersionPrefix>[^<]*</VersionPrefix>|<VersionPrefix>$prefix</VersionPrefix>|" "$csproj"
+sed -b -i -E "s|<VersionPrefix>[^<]*</VersionPrefix>|<VersionPrefix>$prefix</VersionPrefix>|" "$csproj"
 if [ -n "$suffix" ]; then
-  sed -i -E "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix>$suffix</VersionSuffix>|" "$csproj"
+  sed -b -i -E "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix>$suffix</VersionSuffix>|" "$csproj"
 else
-  sed -i -E "/<VersionSuffix>/d" "$csproj"
+  sed -b -i -E "/<VersionSuffix>/d" "$csproj"
 fi
-sed -i -E "s|(\"version\": \")[^\"]*(\")|\1$version\2|" "$server"
-sed -i -E "s|(\"Version\": \")[^\"]*(\")|\1$prefix\2|" "$flaxproj"
+sed -b -i -E "s|(\"version\": \")[^\"]*(\")|\1$version\2|" "$server"
+sed -b -i -E "s|(\"Version\": \")[^\"]*(\")|\1$prefix\2|" "$flaxproj"
 echo "version set: $version"
 "$repo/tools/check_version.sh"

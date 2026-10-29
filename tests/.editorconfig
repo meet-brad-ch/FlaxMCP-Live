@@ -1,0 +1,3 @@
+[*.cs]
+# Test names use the xUnit pattern Method_Condition_Result, which needs underscores.
+dotnet_diagnostic.CA1707.severity = none
