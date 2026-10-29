@@ -10,13 +10,24 @@ namespace FlaxMcp.Tools;
 [McpServerToolType]
 public sealed class EditorObjectTools
 {
+    /// <summary>The bridge client that reads and changes the live objects.</summary>
     private readonly IFlaxEditorObjectClient _client;
 
+    /// <summary>Creates the tools.</summary>
+    /// <param name="client">Reaches the editor's objects through the bridge.</param>
     public EditorObjectTools(IFlaxEditorObjectClient client)
     {
         _client = client;
     }
 
+    /// <summary>Finds actors in the loaded scenes.</summary>
+    /// <param name="nameContains">Part of the actor's name, case-insensitive; null for any.</param>
+    /// <param name="actorType">The actor's type; null for any.</param>
+    /// <param name="scriptType">A script type the actor has; null for any.</param>
+    /// <param name="limit">At most this many, 1 to 500.</param>
+    /// <param name="cancellationToken">Stops the call.</param>
+    /// <returns>The matching actors.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="limit"/> is out of range.</exception>
     [McpServerTool(Name = "editor_find_actors", ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Finds actors in the loaded scenes (the play-time scene during play) by name, actor type and script type, all " +
@@ -35,6 +46,13 @@ public sealed class EditorObjectTools
         return _client.FindActorsAsync(nameContains, actorType, scriptType, limit, cancellationToken);
     }
 
+    /// <summary>Reads a field or property of an actor or one of its scripts.</summary>
+    /// <param name="actorId">The actor's id.</param>
+    /// <param name="member">The dotted member path.</param>
+    /// <param name="scriptType">Read from the actor's script of this type; null for the actor.</param>
+    /// <param name="cancellationToken">Stops the call.</param>
+    /// <returns>The value.</returns>
+    /// <exception cref="ArgumentException"><paramref name="actorId"/> or <paramref name="member"/> is empty.</exception>
     [McpServerTool(Name = "editor_get_member", ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Reads a field or property of an actor, or of one of its scripts, by a dotted path (e.g. Clock.Steps). " +
@@ -51,6 +69,14 @@ public sealed class EditorObjectTools
         return _client.GetMemberAsync(actorId, scriptType, member, cancellationToken);
     }
 
+    /// <summary>Writes a field or property of an actor or one of its scripts.</summary>
+    /// <param name="actorId">The actor's id.</param>
+    /// <param name="member">The dotted member path.</param>
+    /// <param name="value">The new value as JSON.</param>
+    /// <param name="scriptType">Write to the actor's script of this type; null for the actor.</param>
+    /// <param name="cancellationToken">Stops the call.</param>
+    /// <returns>The value read back.</returns>
+    /// <exception cref="ArgumentException"><paramref name="actorId"/> or <paramref name="member"/> is empty.</exception>
     [McpServerTool(Name = "editor_set_member", UseStructuredContent = true)]
     [Description(
         "Writes a field or property of an actor or of one of its scripts by a dotted path; a struct on the way is " +
@@ -70,6 +96,15 @@ public sealed class EditorObjectTools
         return _client.SetMemberAsync(actorId, scriptType, member, value, cancellationToken);
     }
 
+    /// <summary>Calls a method on the editor's main thread.</summary>
+    /// <param name="method">The method's name.</param>
+    /// <param name="args">The arguments as a JSON array; null for none.</param>
+    /// <param name="actorId">The actor whose (or whose script's) instance method to call; null for a static method.</param>
+    /// <param name="scriptType">Call the method on the actor's script of this type; null for the actor.</param>
+    /// <param name="typeName">For a static method: the type's name.</param>
+    /// <param name="cancellationToken">Stops the call.</param>
+    /// <returns>The method's result.</returns>
+    /// <exception cref="ArgumentException"><paramref name="method"/> is empty.</exception>
     [McpServerTool(Name = "editor_invoke_method", UseStructuredContent = true)]
     [RequiresCodeExecution]
     [Description(
@@ -87,10 +122,18 @@ public sealed class EditorObjectTools
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(method);
-        var arguments = args ?? JsonDocument.Parse("[]").RootElement.Clone();
+        using var emptyArguments = JsonDocument.Parse("[]");
+        JsonElement arguments = args ?? emptyArguments.RootElement.Clone();
         return _client.InvokeMethodAsync(typeName, method, actorId, scriptType, arguments, cancellationToken);
     }
 
+    /// <summary>Adds a script of a type to an actor.</summary>
+    /// <param name="actorId">The actor's id.</param>
+    /// <param name="scriptType">The script type.</param>
+    /// <param name="orderInParent">The script's place among the actor's scripts; null for the end.</param>
+    /// <param name="cancellationToken">Stops the call.</param>
+    /// <returns>The added script.</returns>
+    /// <exception cref="ArgumentException"><paramref name="actorId"/> or <paramref name="scriptType"/> is empty.</exception>
     [McpServerTool(Name = "editor_add_script", UseStructuredContent = true)]
     [Description(
         "Adds a script of a type to an actor (nothing when it has one already) and, in edit mode, marks the scene " +

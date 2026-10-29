@@ -15,7 +15,10 @@ namespace FlaxMcpBridge.Host;
 /// </remarks>
 public static class BridgeHostEntry
 {
+    /// <summary>Guards <see cref="_server"/>.</summary>
     private static readonly object Gate = new();
+
+    /// <summary>The running host, or null.</summary>
     private static BridgeHostServer? _server;
 
     /// <summary>The editor's recent events: fed by the Flax adapter (Host/Flax), read by clients.</summary>
@@ -41,13 +44,14 @@ public static class BridgeHostEntry
         using var document = JsonDocument.Parse(optionsJson);
         var root = document.RootElement;
         var projectFolder = root.GetProperty("projectFolder").GetString()!;
-        var options = new BridgeHostOptions(
-            projectFolder,
-            BridgeHostServer.PipeNameFor(projectFolder),
-            Path.Combine(root.GetProperty("sessionsDirectory").GetString()!, BridgeHostServer.HandshakeFileNameFor(projectFolder)),
-            root.GetProperty("hostVersion").GetString()!,
-            TimeSpan.FromSeconds(root.GetProperty("attachWaitSeconds").GetDouble())
-        );
+        var pipeName = BridgeHostServer.PipeNameFor(projectFolder);
+        var sessionsDirectory = root.GetProperty("sessionsDirectory").GetString()!;
+        var handshakeFileName = BridgeHostServer.HandshakeFileNameFor(projectFolder);
+        var handshakePath = Path.Combine(sessionsDirectory, handshakeFileName);
+        var hostVersion = root.GetProperty("hostVersion").GetString()!;
+        var attachWaitSeconds = root.GetProperty("attachWaitSeconds").GetDouble();
+        var attachWait = TimeSpan.FromSeconds(attachWaitSeconds);
+        var options = new BridgeHostOptions(projectFolder, pipeName, handshakePath, hostVersion, attachWait);
         lock (Gate)
         {
             if (_server is not null)
@@ -63,21 +67,22 @@ public static class BridgeHostEntry
     /// <summary>Attaches a plugin generation.</summary>
     /// <param name="attachmentJson">JSON with generation, protocolVersion, pluginVersion and engineBuild.</param>
     /// <param name="dispatch">Answers a request line with a response line.</param>
+    /// <exception cref="InvalidOperationException">The host is not running.</exception>
     public static void Attach(string attachmentJson, Func<string, Task<string>> dispatch)
     {
         using var document = JsonDocument.Parse(attachmentJson);
         var root = document.RootElement;
-        Server().Attach(new BridgeHostAttachment(
-            root.GetProperty("generation").GetInt64(),
-            root.GetProperty("protocolVersion").GetInt32(),
-            root.GetProperty("pluginVersion").GetString()!,
-            root.GetProperty("engineBuild").GetInt32(),
-            dispatch
-        ));
+        var generation = root.GetProperty("generation").GetInt64();
+        var protocolVersion = root.GetProperty("protocolVersion").GetInt32();
+        var pluginVersion = root.GetProperty("pluginVersion").GetString()!;
+        var engineBuild = root.GetProperty("engineBuild").GetInt32();
+        var attachment = new BridgeHostAttachment(generation, protocolVersion, pluginVersion, engineBuild, dispatch);
+        Server().Attach(attachment);
     }
 
     /// <summary>Detaches a plugin generation.</summary>
     /// <param name="generation">The generation going away.</param>
+    /// <exception cref="InvalidOperationException">The host is not running.</exception>
     public static void Detach(long generation) => Server().Detach(generation);
 
     /// <summary>Stops the host and removes its handshake file (editor exit, or a newer host taking over).</summary>
@@ -90,6 +95,9 @@ public static class BridgeHostEntry
         }
     }
 
+    /// <summary>The running host.</summary>
+    /// <returns>The host.</returns>
+    /// <exception cref="InvalidOperationException">The host is not running.</exception>
     private static BridgeHostServer Server()
     {
         lock (Gate)

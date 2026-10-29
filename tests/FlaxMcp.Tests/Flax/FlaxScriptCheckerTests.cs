@@ -109,6 +109,20 @@ public sealed class FlaxScriptCheckerTests : IDisposable
     }
 
     [Fact]
+    public async Task Check_WithModulesThatReferenceEachOther_NamesTheModuleThatClosesTheCycle()
+    {
+        const string code = "public static class Marker { }";
+        WriteModule("Aa", code, dependsOn: "Bb");
+        WriteModule("Bb", code, dependsOn: "Cc");
+        WriteModule("Cc", code, dependsOn: "Bb");
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Checker().CheckAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("through Bb", failure.Message);
+    }
+
+    [Fact]
     public async Task Check_FindsAFileAddedSinceTheLastBuild()
     {
         WriteModule("Core", "public static class Answer { public static int Value => 42; }");

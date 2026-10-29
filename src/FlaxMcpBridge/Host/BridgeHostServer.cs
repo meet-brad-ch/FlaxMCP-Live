@@ -28,16 +28,37 @@ public sealed class BridgeHostServer : IDisposable
     /// <summary>Error code of a request that found no attached plugin within the attach wait.</summary>
     public const string PluginNotAttached = "plugin_not_attached";
 
+    /// <summary>The pipe, the handshake file and the waits.</summary>
     private readonly BridgeHostOptions _options;
+
+    /// <summary>The editor's recorded events.</summary>
     private readonly BridgeEventRing _events;
+
+    /// <summary>Guards the attachment, the counters and the plugin context list.</summary>
     private readonly object _gate = new();
+
+    /// <summary>Cancelled when the server stops.</summary>
     private readonly CancellationTokenSource _stopping = new();
+
+    /// <summary>One weak reference per plugin load context that ever attached.</summary>
     private readonly List<WeakReference> _pluginContexts = new();
+
+    /// <summary>When the host started.</summary>
     private readonly DateTime _startedUtc = DateTime.UtcNow;
+
+    /// <summary>Completed when the next generation attaches; requests without a plugin wait on it.</summary>
     private TaskCompletionSource<BridgeHostAttachment> _nextAttachment = NewAttachmentSource();
+
+    /// <summary>The attached generation, or null.</summary>
     private BridgeHostAttachment? _attachment;
+
+    /// <summary>The task that accepts clients, or null before <see cref="Start"/>.</summary>
     private Task? _acceptLoop;
+
+    /// <summary>How many generations attached.</summary>
     private int _attachCount;
+
+    /// <summary>How many generations detached.</summary>
     private int _detachCount;
 
     /// <summary>Creates a stopped server.</summary>
@@ -126,15 +147,7 @@ public sealed class BridgeHostServer : IDisposable
 
         lock (_gate)
         {
-            var alive = 0;
-            foreach (var context in _pluginContexts)
-            {
-                if (context.IsAlive)
-                {
-                    alive++;
-                }
-            }
-
+            var alive = CountAliveContexts();
             using var process = Process.GetCurrentProcess();
             return JsonSerializer.Serialize(new Dictionary<string, object?>
             {
@@ -201,11 +214,8 @@ public sealed class BridgeHostServer : IDisposable
         var attachment = await WaitForAttachmentAsync(cancellationToken);
         if (attachment is null)
         {
-            return BridgeHostRequest.Error(
-                request.Id,
-                PluginNotAttached,
-                $"No editor plugin attached within {_options.AttachWait.TotalSeconds:0} seconds (scripts reloading or failed to load)."
-            );
+            var notAttached = $"No editor plugin attached within {_options.AttachWait.TotalSeconds:0} seconds (scripts reloading or failed to load).";
+            return BridgeHostRequest.Error(request.Id, PluginNotAttached, notAttached);
         }
 
         var answer = attachment.Dispatch(line);
@@ -213,11 +223,8 @@ public sealed class BridgeHostServer : IDisposable
         if (finished != answer)
         {
             ObserveFault(answer);
-            return BridgeHostRequest.Error(
-                request.Id,
-                InterruptedByReload,
-                $"Scripts reloaded while the request ran (plugin generation {attachment.Generation}); its effects are unknown."
-            );
+            var interrupted = $"Scripts reloaded while the request ran (plugin generation {attachment.Generation}); its effects are unknown.";
+            return BridgeHostRequest.Error(request.Id, InterruptedByReload, interrupted);
         }
 
         try
@@ -227,7 +234,8 @@ public sealed class BridgeHostServer : IDisposable
         catch (Exception ex)
         {
             // The plugin answers its own failures; one that escapes it still reaches the client as an error.
-            return BridgeHostRequest.Error(request.Id, "request_failed", ex.GetType().Name + ": " + ex.Message);
+            var failure = ex.GetType().Name + ": " + ex.Message;
+            return BridgeHostRequest.Error(request.Id, "request_failed", failure);
         }
     }
 
@@ -241,6 +249,28 @@ public sealed class BridgeHostServer : IDisposable
     /// <returns>The file name without its folder.</returns>
     public static string HandshakeFileNameFor(string projectFolder) => Hash(projectFolder) + ".json";
 
+    /// <summary>Counts the plugin load contexts that are not yet collected. The caller holds <c>_gate</c>.</summary>
+    /// <returns>The count.</returns>
+    private int CountAliveContexts()
+    {
+        var alive = 0;
+        foreach (var context in _pluginContexts)
+        {
+            if (context.IsAlive)
+            {
+                alive++;
+            }
+        }
+
+        return alive;
+    }
+
+    /// <summary>Answers <c>events_since</c> or <c>events_wait</c> from the ring.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="line">The request JSON.</param>
+    /// <param name="wait">True for <c>events_wait</c>.</param>
+    /// <param name="cancellationToken">Stops the wait.</param>
+    /// <returns>The response JSON; an <c>invalid_request</c> error when a parameter is bad.</returns>
     private async Task<string> EventsAsync(int id, string line, bool wait, CancellationToken cancellationToken)
     {
         BridgeEventQuery query;
@@ -253,17 +283,26 @@ public sealed class BridgeHostServer : IDisposable
             return BridgeHostRequest.Error(id, "invalid_request", ex.Message);
         }
 
-        var page = wait ?
-            await _events.WaitAsync(query.AfterSeq, query.Max, query.Kinds, query.Wait, cancellationToken) :
-            _events.Read(query.AfterSeq, query.Max, query.Kinds);
+        BridgeEventPage page;
+        if (wait)
+        {
+            page = await _events.WaitAsync(query.AfterSeq, query.Max, query.Kinds, query.Wait, cancellationToken);
+        }
+        else
+        {
+            page = _events.Read(query.AfterSeq, query.Max, query.Kinds);
+        }
+
         var events = new List<Dictionary<string, object?>>(page.Events.Count);
         foreach (var item in page.Events)
         {
+            var utc = new DateTime(item.UtcTicks, DateTimeKind.Utc);
+            var kindName = BridgeEventQuery.NameOf(item.Kind);
             events.Add(new Dictionary<string, object?>
             {
                 ["seq"] = item.Seq,
-                ["utc"] = new DateTime(item.UtcTicks, DateTimeKind.Utc),
-                ["kind"] = BridgeEventQuery.NameOf(item.Kind),
+                ["utc"] = utc,
+                ["kind"] = kindName,
                 ["level"] = item.Level,
                 ["text"] = item.Text,
             });
@@ -279,6 +318,9 @@ public sealed class BridgeHostServer : IDisposable
         }));
     }
 
+    /// <summary>Returns the attached plugin, or waits for one.</summary>
+    /// <param name="cancellationToken">Stops the wait.</param>
+    /// <returns>The attachment, or null when none attached within the attach wait.</returns>
     private async Task<BridgeHostAttachment?> WaitForAttachmentAsync(CancellationToken cancellationToken)
     {
         Task<BridgeHostAttachment> next;
@@ -293,9 +335,16 @@ public sealed class BridgeHostServer : IDisposable
         }
 
         var finished = await Task.WhenAny(next, Task.Delay(_options.AttachWait, cancellationToken));
-        return finished == next ? await next : null;
+        if (finished != next)
+        {
+            return null;
+        }
+
+        return await next;
     }
 
+    /// <summary>Accepts pipe clients until the server stops.</summary>
+    /// <param name="token">Cancelled when the server stops.</param>
     private async Task AcceptLoopAsync(CancellationToken token)
     {
         var pipe = NewPipe();
@@ -326,6 +375,9 @@ public sealed class BridgeHostServer : IDisposable
         await pipe.DisposeAsync();
     }
 
+    /// <summary>Answers the request lines of one client until it leaves. Pipe failures end only this client.</summary>
+    /// <param name="pipe">The connected pipe; closed here.</param>
+    /// <param name="token">Cancelled when the server stops.</param>
     private async Task ServeClientAsync(NamedPipeServerStream pipe, CancellationToken token)
     {
         await using (pipe)
@@ -342,7 +394,8 @@ public sealed class BridgeHostServer : IDisposable
                         break;
                     }
 
-                    await writer.WriteLineAsync(await HandleLineAsync(line, token));
+                    var response = await HandleLineAsync(line, token);
+                    await writer.WriteLineAsync(response);
                     await writer.FlushAsync(token);
                 }
             }
@@ -353,6 +406,8 @@ public sealed class BridgeHostServer : IDisposable
         }
     }
 
+    /// <summary>Creates a listening pipe instance.</summary>
+    /// <returns>The pipe.</returns>
     private NamedPipeServerStream NewPipe() =>
         new(
             _options.PipeName,
@@ -362,6 +417,8 @@ public sealed class BridgeHostServer : IDisposable
             PipeOptions.Asynchronous
         );
 
+    /// <summary>Writes the handshake file that tells clients the pipe, the protocol and the process.</summary>
+    /// <param name="attachment">The generation that just attached.</param>
     private void WriteHandshake(BridgeHostAttachment attachment)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_options.HandshakePath)!);
@@ -383,6 +440,8 @@ public sealed class BridgeHostServer : IDisposable
         File.Move(temporary, _options.HandshakePath, overwrite: true);
     }
 
+    /// <summary>Observes a task's later failure, so it does not surface as an unobserved exception.</summary>
+    /// <param name="task">The task.</param>
     private static void ObserveFault(Task task) =>
         _ = task.ContinueWith(
             finished => _ = finished.Exception,
@@ -391,9 +450,14 @@ public sealed class BridgeHostServer : IDisposable
             TaskScheduler.Default
         );
 
+    /// <summary>Creates the source that the next attach completes.</summary>
+    /// <returns>The source.</returns>
     private static TaskCompletionSource<BridgeHostAttachment> NewAttachmentSource() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    /// <summary>Hashes a normalised project folder.</summary>
+    /// <param name="value">The project folder.</param>
+    /// <returns>16 hexadecimal characters.</returns>
     private static string Hash(string value)
     {
         var normalized = value.Replace('\\', '/').TrimEnd('/').ToLowerInvariant();
@@ -409,6 +473,7 @@ public sealed class BridgeHostServer : IDisposable
 /// <param name="Wait">For <c>events_wait</c>: how long to wait for one (at most 2 seconds, under the client's request timeout).</param>
 public sealed record BridgeEventQuery(long AfterSeq, int Max, IReadOnlyCollection<BridgeEventKind>? Kinds, TimeSpan Wait)
 {
+    /// <summary>Wire name to kind.</summary>
     private static readonly Dictionary<string, BridgeEventKind> Names = new(StringComparer.Ordinal)
     {
         ["log"] = BridgeEventKind.Log,
@@ -450,10 +515,85 @@ public sealed record BridgeEventQuery(long AfterSeq, int Max, IReadOnlyCollectio
     public static BridgeEventQuery Parse(string line)
     {
         using var document = JsonDocument.Parse(line);
-        var hasParams = document.RootElement.TryGetProperty("params", out var parameters) && parameters.ValueKind == JsonValueKind.Object;
-        var afterSeq = hasParams && parameters.TryGetProperty("afterSeq", out var after) ? after.GetInt64() : 0;
-        var max = hasParams && parameters.TryGetProperty("max", out var maxElement) ? maxElement.GetInt32() : 100;
-        var waitMs = hasParams && parameters.TryGetProperty("waitMs", out var waitElement) ? waitElement.GetInt32() : 0;
+        JsonElement parameters = default;
+        var hasParams = TryGetParameters(document.RootElement, out parameters);
+        long afterSeq = 0;
+        var max = 100;
+        var waitMs = 0;
+        List<BridgeEventKind>? kinds = null;
+        if (hasParams)
+        {
+            afterSeq = ReadAfterSeq(parameters);
+            max = ReadMax(parameters);
+            waitMs = ReadWaitMs(parameters);
+            CheckRanges(max, waitMs);
+            kinds = ReadKinds(parameters);
+        }
+
+        var wait = TimeSpan.FromMilliseconds(waitMs);
+        return new BridgeEventQuery(afterSeq, max, kinds, wait);
+    }
+
+    /// <summary>Finds the request's <c>params</c> object.</summary>
+    /// <param name="root">The request's root element.</param>
+    /// <param name="parameters">The <c>params</c> object when the request has one.</param>
+    /// <returns>True when <c>params</c> is present and an object.</returns>
+    private static bool TryGetParameters(JsonElement root, out JsonElement parameters)
+    {
+        var found = root.TryGetProperty("params", out parameters);
+        if (!found)
+        {
+            return false;
+        }
+
+        return parameters.ValueKind == JsonValueKind.Object;
+    }
+
+    /// <summary>Reads <c>afterSeq</c>.</summary>
+    /// <param name="parameters">The <c>params</c> object.</param>
+    /// <returns>The value, or 0 when absent.</returns>
+    private static long ReadAfterSeq(JsonElement parameters)
+    {
+        if (!parameters.TryGetProperty("afterSeq", out var element))
+        {
+            return 0;
+        }
+
+        return element.GetInt64();
+    }
+
+    /// <summary>Reads <c>max</c>.</summary>
+    /// <param name="parameters">The <c>params</c> object.</param>
+    /// <returns>The value, or 100 when absent.</returns>
+    private static int ReadMax(JsonElement parameters)
+    {
+        if (!parameters.TryGetProperty("max", out var element))
+        {
+            return 100;
+        }
+
+        return element.GetInt32();
+    }
+
+    /// <summary>Reads <c>waitMs</c>.</summary>
+    /// <param name="parameters">The <c>params</c> object.</param>
+    /// <returns>The value, or 0 when absent.</returns>
+    private static int ReadWaitMs(JsonElement parameters)
+    {
+        if (!parameters.TryGetProperty("waitMs", out var element))
+        {
+            return 0;
+        }
+
+        return element.GetInt32();
+    }
+
+    /// <summary>Checks the numeric parameters against their limits.</summary>
+    /// <param name="max">The page size.</param>
+    /// <param name="waitMs">The wait in milliseconds.</param>
+    /// <exception cref="ArgumentException">A value is out of range.</exception>
+    private static void CheckRanges(int max, int waitMs)
+    {
         if (max < 1 || max > 500)
         {
             throw new ArgumentException($"max must be 1 to 500, not {max}.");
@@ -463,21 +603,33 @@ public sealed record BridgeEventQuery(long AfterSeq, int Max, IReadOnlyCollectio
         {
             throw new ArgumentException($"waitMs must be 0 to 2000, not {waitMs}.");
         }
+    }
 
-        List<BridgeEventKind>? kinds = null;
-        if (hasParams && parameters.TryGetProperty("kinds", out var kindsElement) && kindsElement.ValueKind == JsonValueKind.Array)
+    /// <summary>Reads <c>kinds</c>.</summary>
+    /// <param name="parameters">The <c>params</c> object.</param>
+    /// <returns>The kinds, or null when <c>kinds</c> is absent or not an array.</returns>
+    /// <exception cref="ArgumentException">A name is not a known kind.</exception>
+    private static List<BridgeEventKind>? ReadKinds(JsonElement parameters)
+    {
+        var found = parameters.TryGetProperty("kinds", out var element);
+        if (!found || element.ValueKind != JsonValueKind.Array)
         {
-            kinds = new List<BridgeEventKind>();
-            foreach (var name in kindsElement.EnumerateArray())
-            {
-                var text = name.GetString() ?? "";
-                kinds.Add(Names.TryGetValue(text, out var kind) ?
-                    kind :
-                    throw new ArgumentException($"Unknown event kind '{text}'. Kinds: {string.Join(", ", Names.Keys)}."));
-            }
+            return null;
         }
 
-        return new BridgeEventQuery(afterSeq, max, kinds, TimeSpan.FromMilliseconds(waitMs));
+        var kinds = new List<BridgeEventKind>();
+        foreach (var name in element.EnumerateArray())
+        {
+            var text = name.GetString() ?? "";
+            if (!Names.TryGetValue(text, out var kind))
+            {
+                throw new ArgumentException($"Unknown event kind '{text}'. Kinds: {string.Join(", ", Names.Keys)}.");
+            }
+
+            kinds.Add(kind);
+        }
+
+        return kinds;
     }
 }
 
@@ -525,13 +677,70 @@ public sealed record BridgeHostRequest(int Id, string Method, bool Collect)
     {
         using var document = JsonDocument.Parse(line);
         var root = document.RootElement;
-        var id = root.TryGetProperty("id", out var idElement) && idElement.TryGetInt32(out var value) ? value : 0;
-        var method = root.TryGetProperty("method", out var methodElement) ? methodElement.GetString() ?? "" : "";
-        var collect = root.TryGetProperty("params", out var parameters) &&
-                      parameters.ValueKind == JsonValueKind.Object &&
-                      parameters.TryGetProperty("collect", out var collectElement) &&
-                      collectElement.ValueKind == JsonValueKind.True;
+        var id = ReadId(root);
+        var method = ReadMethod(root);
+        var collect = ReadCollect(root);
         return new BridgeHostRequest(id, method, collect);
+    }
+
+    /// <summary>Reads the request id.</summary>
+    /// <param name="root">The request's root element.</param>
+    /// <returns>The id, or 0 when absent or not a 32-bit integer.</returns>
+    private static int ReadId(JsonElement root)
+    {
+        if (!root.TryGetProperty("id", out var element))
+        {
+            return 0;
+        }
+
+        if (!element.TryGetInt32(out var value))
+        {
+            return 0;
+        }
+
+        return value;
+    }
+
+    /// <summary>Reads the method name.</summary>
+    /// <param name="root">The request's root element.</param>
+    /// <returns>The name, or an empty string when absent or null.</returns>
+    private static string ReadMethod(JsonElement root)
+    {
+        if (!root.TryGetProperty("method", out var element))
+        {
+            return "";
+        }
+
+        var text = element.GetString();
+        if (text is null)
+        {
+            return "";
+        }
+
+        return text;
+    }
+
+    /// <summary>Reads the <c>collect</c> parameter of <c>host_status</c>.</summary>
+    /// <param name="root">The request's root element.</param>
+    /// <returns>True only when <c>params.collect</c> is the JSON value true.</returns>
+    private static bool ReadCollect(JsonElement root)
+    {
+        if (!root.TryGetProperty("params", out var parameters))
+        {
+            return false;
+        }
+
+        if (parameters.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!parameters.TryGetProperty("collect", out var element))
+        {
+            return false;
+        }
+
+        return element.ValueKind == JsonValueKind.True;
     }
 
     /// <summary>A result response around JSON the host made.</summary>

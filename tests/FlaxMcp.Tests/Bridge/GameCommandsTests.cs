@@ -49,6 +49,16 @@ public sealed class GameCommandsTests
         Assert.Throws<ArgumentException>(() => GameCommands.Register(name, "Bad.", arg => arg));
     }
 
+    [Theory]
+    [InlineData("gc-test-a")]
+    [InlineData("gc-test-9")]
+    public void Register_ALowercaseDigitDashName_Works(string name)
+    {
+        using var registration = GameCommands.Register(name, "Good.", arg => arg);
+
+        Assert.NotNull(GameCommands.Find(name));
+    }
+
     [Fact]
     public void Register_WithoutDescription_Throws()
     {

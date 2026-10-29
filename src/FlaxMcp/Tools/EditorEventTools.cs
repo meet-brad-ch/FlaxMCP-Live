@@ -8,14 +8,26 @@ namespace FlaxMcp.Tools;
 [McpServerToolType]
 public sealed class EditorEventTools
 {
+    /// <summary>The longest wait editor_wait_for accepts.</summary>
     private static readonly TimeSpan MaxWait = TimeSpan.FromMinutes(10);
+    /// <summary>The bridge client that reads the events.</summary>
     private readonly IFlaxEditorEventClient _client;
 
+    /// <summary>Creates the tools.</summary>
+    /// <param name="client">Reads the editor's events through the bridge.</param>
     public EditorEventTools(IFlaxEditorEventClient client)
     {
         _client = client;
     }
 
+    /// <summary>Returns the recorded events after a sequence number.</summary>
+    /// <param name="sinceSeq">Only events after this sequence number; 0 for all held.</param>
+    /// <param name="kinds">Only these kinds; null for all.</param>
+    /// <param name="limit">At most this many events, 1 to 500.</param>
+    /// <param name="waitSeconds">How long to wait when none match yet, 0 to 2 seconds.</param>
+    /// <param name="cancellationToken">Stops the call.</param>
+    /// <returns>The page of events.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="limit"/> or <paramref name="waitSeconds"/> is out of range.</exception>
     [McpServerTool(Name = "editor_events", ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Returns the editor's recorded events after a sequence number, oldest first. Kinds: log (managed log lines " +
@@ -36,9 +48,19 @@ public sealed class EditorEventTools
         ArgumentOutOfRangeException.ThrowIfGreaterThan(limit, 500);
         ArgumentOutOfRangeException.ThrowIfLessThan(waitSeconds, 0);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(waitSeconds, 2);
-        return _client.GetEventsAsync(sinceSeq, kinds, limit, (int)(waitSeconds * 1000), cancellationToken);
+        var waitMilliseconds = (int)(waitSeconds * 1000);
+        return _client.GetEventsAsync(sinceSeq, kinds, limit, waitMilliseconds, cancellationToken);
     }
 
+    /// <summary>Waits for the first editor event of a kind.</summary>
+    /// <param name="kind">The event kind.</param>
+    /// <param name="textContains">Only an event whose text contains this (ordinal); null for any.</param>
+    /// <param name="sinceSeq">Count events after this sequence number; null to wait for a new one.</param>
+    /// <param name="timeoutSeconds">How long to wait, 0 to 600 seconds.</param>
+    /// <param name="cancellationToken">Stops the call.</param>
+    /// <returns>The event, or a timed-out result.</returns>
+    /// <exception cref="ArgumentException"><paramref name="kind"/> is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeoutSeconds"/> is out of range.</exception>
     [McpServerTool(Name = "editor_wait_for", ReadOnly = true, UseStructuredContent = true)]
     [Description(
         "Waits for the first editor event of a kind (see editor_events), optionally with a text, and returns it. " +

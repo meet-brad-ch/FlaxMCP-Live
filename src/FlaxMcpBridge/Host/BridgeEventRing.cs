@@ -72,9 +72,16 @@ public sealed record BridgeEventPage(IReadOnlyList<BridgeEvent> Events, long Las
 /// </summary>
 public sealed class BridgeEventRing
 {
+    /// <summary>Guards the slots, the sequence and the waiters.</summary>
     private readonly object _gate = new();
+
+    /// <summary>The ring's slots; event <c>n</c> lives in slot <c>n % length</c>.</summary>
     private readonly BridgeEvent[] _slots;
+
+    /// <summary>The newest sequence number recorded.</summary>
     private long _lastSeq;
+
+    /// <summary>Completed by the next append; null when nobody waits.</summary>
     private TaskCompletionSource<bool>? _waiters;
 
     /// <summary>Creates an empty ring.</summary>
@@ -112,7 +119,9 @@ public sealed class BridgeEventRing
         lock (_gate)
         {
             var seq = ++_lastSeq;
-            _slots[(int)(seq % _slots.Length)] = new BridgeEvent(seq, DateTime.UtcNow.Ticks, kind, level, text);
+            var slot = (int)(seq % _slots.Length);
+            var ticks = DateTime.UtcNow.Ticks;
+            _slots[slot] = new BridgeEvent(seq, ticks, kind, level, text);
             waiters = _waiters;
             _waiters = null;
         }
@@ -141,7 +150,14 @@ public sealed class BridgeEventRing
                 }
             }
 
-            return new BridgeEventPage(events, _lastSeq, _lastSeq == 0 ? 0 : oldest, afterSeq + 1 < oldest && _lastSeq > 0);
+            long oldestHeld = oldest;
+            if (_lastSeq == 0)
+            {
+                oldestHeld = 0;
+            }
+
+            var truncated = afterSeq + 1 < oldest && _lastSeq > 0;
+            return new BridgeEventPage(events, _lastSeq, oldestHeld, truncated);
         }
     }
 
@@ -152,6 +168,7 @@ public sealed class BridgeEventRing
     /// <param name="wait">How long to wait for one.</param>
     /// <param name="cancellationToken">Stops the wait.</param>
     /// <returns>The page; empty when the wait ended without a match.</returns>
+    /// <exception cref="OperationCanceledException">The token was cancelled.</exception>
     public async Task<BridgeEventPage> WaitAsync(
         long afterSeq,
         int max,
@@ -160,6 +177,7 @@ public sealed class BridgeEventRing
         CancellationToken cancellationToken)
     {
         var deadline = DateTime.UtcNow + wait;
+        // Each pass ends the call or waits at most until the deadline, so the loop is bounded by the wait.
         while (true)
         {
             Task changed;
@@ -189,6 +207,10 @@ public sealed class BridgeEventRing
         }
     }
 
+    /// <summary>Tells whether a kind is in a filter.</summary>
+    /// <param name="kinds">The filter.</param>
+    /// <param name="kind">The kind to look for.</param>
+    /// <returns>True when the filter holds the kind.</returns>
     private static bool Contains(IReadOnlyCollection<BridgeEventKind> kinds, BridgeEventKind kind)
     {
         foreach (var candidate in kinds)

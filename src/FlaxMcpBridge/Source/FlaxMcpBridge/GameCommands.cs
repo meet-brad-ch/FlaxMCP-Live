@@ -18,7 +18,10 @@ namespace FlaxMcpBridge;
 /// </remarks>
 public static class GameCommands
 {
+    /// <summary>Serializes writers of <see cref="_commands"/>; readers use a snapshot and take no lock.</summary>
     private static readonly object Gate = new();
+
+    /// <summary>The registered commands; replaced as a whole on every change, never edited in place.</summary>
     private static GameCommand[] _commands = Array.Empty<GameCommand>();
 
     /// <summary>Registers a command until the returned registration is disposed.</summary>
@@ -45,18 +48,30 @@ public static class GameCommands
             throw new ArgumentNullException(nameof(handler));
         }
 
-        var command = new GameCommand(new GameCommandInfo(name, description, OwnerOf(handler)), handler);
+        string owner = OwnerOf(handler);
+        var info = new GameCommandInfo(name, description, owner);
+        var command = new GameCommand(info, handler);
+        AddCommand(command);
+        return new GameCommandRegistration(command);
+    }
+
+    /// <summary>Adds a command to the registry under the lock.</summary>
+    /// <param name="command">The command to add.</param>
+    /// <exception cref="InvalidOperationException">A command with this name is already registered.</exception>
+    private static void AddCommand(GameCommand command)
+    {
+        string name = command.Info.Name;
         lock (Gate)
         {
-            if (_commands.Any(existing => existing.Info.Name == name))
+            GameCommand? existing = _commands.FirstOrDefault(registered => registered.Info.Name == name);
+            if (existing is not null)
             {
-                throw new InvalidOperationException($"Game command '{name}' is already registered by {Find(name)!.Info.Owner}.");
+                throw new InvalidOperationException($"Game command '{name}' is already registered by {existing.Info.Owner}.");
             }
 
-            Volatile.Write(ref _commands, _commands.Append(command).ToArray());
+            GameCommand[] extended = _commands.Append(command).ToArray();
+            Volatile.Write(ref _commands, extended);
         }
-
-        return new GameCommandRegistration(command);
     }
 
     /// <summary>The registered commands, sorted by name.</summary>
@@ -82,16 +97,24 @@ public static class GameCommands
         return type?.FullName ?? "?";
     }
 
+    /// <summary>Checks the naming rule: lowercase letters, digits and dashes, starting with a letter.</summary>
+    /// <param name="name">The candidate name.</param>
+    /// <returns>True when the name follows the rule.</returns>
     private static bool IsValidName(string name)
     {
-        if (string.IsNullOrEmpty(name) || name[0] < 'a' || name[0] > 'z')
+        if (string.IsNullOrEmpty(name))
         {
             return false;
         }
 
-        foreach (var c in name)
+        if (!IsLowercaseLetter(name[0]))
         {
-            if (!(c >= 'a' && c <= 'z') && !(c >= '0' && c <= '9') && c != '-')
+            return false;
+        }
+
+        foreach (char character in name)
+        {
+            if (!IsNameCharacter(character))
             {
                 return false;
             }
@@ -100,11 +123,36 @@ public static class GameCommands
         return true;
     }
 
+    /// <summary>Tells whether a character is a lowercase ASCII letter.</summary>
+    /// <param name="character">The character to test.</param>
+    /// <returns>True for a to z.</returns>
+    private static bool IsLowercaseLetter(char character)
+    {
+        return character >= 'a' && character <= 'z';
+    }
+
+    /// <summary>Tells whether a character may appear in a command name.</summary>
+    /// <param name="character">The character to test.</param>
+    /// <returns>True for a lowercase letter, a digit or a dash.</returns>
+    private static bool IsNameCharacter(char character)
+    {
+        if (IsLowercaseLetter(character))
+        {
+            return true;
+        }
+
+        bool isDigit = character >= '0' && character <= '9';
+        return isDigit || character == '-';
+    }
+
+    /// <summary>Removes a command from the registry; a command that is not registered is ignored.</summary>
+    /// <param name="command">The command to remove.</param>
     internal static void Unregister(GameCommand command)
     {
         lock (Gate)
         {
-            Volatile.Write(ref _commands, _commands.Where(existing => !ReferenceEquals(existing, command)).ToArray());
+            GameCommand[] remaining = _commands.Where(existing => !ReferenceEquals(existing, command)).ToArray();
+            Volatile.Write(ref _commands, remaining);
         }
     }
 }
@@ -136,6 +184,9 @@ public sealed class GameCommandInfo
 /// <summary>A registered command: its description and its handler.</summary>
 public sealed class GameCommand
 {
+    /// <summary>Creates a registered command.</summary>
+    /// <param name="info">What a client sees.</param>
+    /// <param name="handler">Runs the command on the main thread.</param>
     internal GameCommand(GameCommandInfo info, Func<string, string> handler)
     {
         Info = info;
@@ -152,8 +203,11 @@ public sealed class GameCommand
 /// <summary>Keeps a command registered until disposed.</summary>
 public sealed class GameCommandRegistration : IDisposable
 {
+    /// <summary>The registered command; null once disposed.</summary>
     private GameCommand? _command;
 
+    /// <summary>Creates the registration of a command that is already in the registry.</summary>
+    /// <param name="command">The command to remove on dispose.</param>
     internal GameCommandRegistration(GameCommand command)
     {
         _command = command;
@@ -162,7 +216,7 @@ public sealed class GameCommandRegistration : IDisposable
     /// <summary>Removes the command; disposing twice does nothing more.</summary>
     public void Dispose()
     {
-        var command = Interlocked.Exchange(ref _command, null);
+        GameCommand? command = Interlocked.Exchange(ref _command, null);
         if (command is not null)
         {
             GameCommands.Unregister(command);

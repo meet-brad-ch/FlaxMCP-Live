@@ -9,9 +9,16 @@ namespace FlaxMcpBridge.Host;
 /// </summary>
 public sealed class SnippetCache
 {
+    /// <summary>Guards the entries and the order.</summary>
     private readonly object _gate = new();
+
+    /// <summary>How many images the cache keeps.</summary>
     private readonly int _capacity;
+
+    /// <summary>The entries by key; each value is the node in <see cref="_order"/>.</summary>
     private readonly Dictionary<string, LinkedListNode<SnippetCacheEntry>> _entries = new(StringComparer.Ordinal);
+
+    /// <summary>The entries, most recently used first.</summary>
     private readonly LinkedList<SnippetCacheEntry> _order = new();
 
     /// <summary>Creates an empty cache.</summary>
@@ -75,7 +82,8 @@ public sealed class SnippetCache
                 _entries.Remove(oldest.Value.Key);
             }
 
-            _entries[key] = _order.AddFirst(new SnippetCacheEntry(key, image));
+            var entry = new SnippetCacheEntry(key, image);
+            _entries[key] = _order.AddFirst(entry);
         }
     }
 }

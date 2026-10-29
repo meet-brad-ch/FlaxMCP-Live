@@ -20,14 +20,20 @@ public static class FlaxCheckedCompile
         CancellationToken cancellationToken)
     {
         progress?.Report("checking the scripts outside the editor");
-        var check = await checker.CheckAsync(cancellationToken);
+        FlaxScriptCheckResult check = await checker.CheckAsync(cancellationToken);
         if (check.Status == "failed")
         {
             return new FlaxEditorCompileResult("failed", check.Seconds, check.Errors, [], 0, "failed");
         }
 
-        var compiled = await bridgeClient.CompileAsync(cancellationToken, progress);
-        var checkNote = check.Status == "unavailable" ? "unavailable: " + check.Reason : check.Status;
-        return compiled with { Seconds = compiled.Seconds + check.Seconds, Check = checkNote };
+        FlaxEditorCompileResult compiled = await bridgeClient.CompileAsync(cancellationToken, progress);
+        string checkNote = check.Status;
+        if (check.Status == "unavailable")
+        {
+            checkNote = "unavailable: " + check.Reason;
+        }
+
+        double totalSeconds = compiled.Seconds + check.Seconds;
+        return compiled with { Seconds = totalSeconds, Check = checkNote };
     }
 }

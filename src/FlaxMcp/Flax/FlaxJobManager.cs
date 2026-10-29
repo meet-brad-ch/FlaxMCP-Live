@@ -11,9 +11,19 @@ namespace FlaxMcp.Flax;
 /// </summary>
 public sealed class FlaxJobManager
 {
+    /// <summary>How many finished jobs stay readable.</summary>
     private const int KeptFinishedJobs = 256;
+
+    /// <summary>The longest pause between two looks at a running job, in milliseconds.</summary>
+    private const double PollMilliseconds = 250;
+
+    /// <summary>Every kept job by id.</summary>
     private readonly ConcurrentDictionary<string, FlaxJob> _jobs = new();
+
+    /// <summary>Guards the exclusive check and the id counter in <see cref="Start"/>.</summary>
     private readonly object _gate = new();
+
+    /// <summary>The number of the last job started.</summary>
     private int _nextId;
 
     /// <summary>Starts work in the background and returns its handle at once.</summary>
@@ -27,16 +37,20 @@ public sealed class FlaxJobManager
         FlaxJob job;
         lock (_gate)
         {
-            if (exclusive && _jobs.Values.FirstOrDefault(other => other.Exclusive && !other.Task.IsCompleted) is { } running)
+            FlaxJob? running = _jobs.Values.FirstOrDefault(other => other.Exclusive && !other.Task.IsCompleted);
+            if (exclusive && running is not null)
             {
                 throw new McpException(
                     $"job_conflict: {running.Handle.JobId} ({running.Handle.Kind}) is still running; wait for it with job_wait.");
             }
 
-            var handle = new FlaxJobHandle($"job-{++_nextId}", kind, DateTime.UtcNow);
-            var progress = new FlaxJobProgress();
+            _nextId++;
+            string jobId = $"job-{_nextId}";
+            FlaxJobHandle handle = new(jobId, kind, DateTime.UtcNow);
+            FlaxJobProgress progress = new();
             // Task.Run: the work's synchronous start runs off the calling thread, and its failure becomes the job's.
-            job = new FlaxJob(handle, exclusive, progress, Task.Run(() => run(progress, CancellationToken.None)));
+            Task<object> work = Task.Run(() => run(progress, CancellationToken.None));
+            job = new FlaxJob(handle, exclusive, progress, work);
             _jobs[handle.JobId] = job;
             EvictFinished();
         }
@@ -66,76 +80,105 @@ public sealed class FlaxJobManager
         IProgress<ProgressNotificationValue>? progress,
         CancellationToken cancellationToken)
     {
-        var job = Find(jobId);
-        var deadline = DateTime.UtcNow + timeout;
-        var reported = 0;
+        FlaxJob job = Find(jobId);
+        DateTime deadline = DateTime.UtcNow + timeout;
+        int reported = 0;
         while (!job.Task.IsCompleted)
         {
-            var latest = job.Progress.Latest();
-            if (progress is not null && latest.Count > reported && latest.Message is not null)
+            FlaxJobProgressSnapshot latest = job.Progress.Latest();
+            bool isNew = latest.Count > reported && latest.Message is not null;
+            if (progress is not null && isNew)
             {
                 reported = latest.Count;
                 progress.Report(new ProgressNotificationValue { Progress = latest.Count, Message = latest.Message });
             }
 
-            var left = deadline - DateTime.UtcNow;
+            TimeSpan left = deadline - DateTime.UtcNow;
             if (left <= TimeSpan.Zero)
             {
                 break;
             }
 
-            await Task.WhenAny(job.Task, Task.Delay(TimeSpan.FromMilliseconds(Math.Min(250, left.TotalMilliseconds)), cancellationToken));
+            double pauseMilliseconds = Math.Min(PollMilliseconds, left.TotalMilliseconds);
+            Task pause = Task.Delay(TimeSpan.FromMilliseconds(pauseMilliseconds), cancellationToken);
+            await Task.WhenAny(job.Task, pause);
             cancellationToken.ThrowIfCancellationRequested();
         }
 
         return job.State();
     }
 
+    /// <summary>Finds a job.</summary>
+    /// <param name="jobId">The job's id.</param>
+    /// <returns>The job.</returns>
+    /// <exception cref="McpException">No job has the id.</exception>
     private FlaxJob Find(string jobId)
     {
-        return _jobs.TryGetValue(jobId, out var job) ? job : throw new McpException($"Unknown job id '{jobId}'.");
+        if (!_jobs.TryGetValue(jobId, out FlaxJob? job))
+        {
+            throw new McpException($"Unknown job id '{jobId}'.");
+        }
+
+        return job;
     }
 
+    /// <summary>Forgets the oldest finished jobs beyond <see cref="KeptFinishedJobs"/>.</summary>
     private void EvictFinished()
     {
-        var finished = _jobs.Values.Where(job => job.Task.IsCompleted).OrderBy(job => job.Handle.StartedUtc).ToList();
-        foreach (var job in finished.Take(Math.Max(0, finished.Count - KeptFinishedJobs)))
+        List<FlaxJob> finished = _jobs.Values.Where(job => job.Task.IsCompleted).OrderBy(job => job.Handle.StartedUtc).ToList();
+        int surplus = Math.Max(0, finished.Count - KeptFinishedJobs);
+        foreach (FlaxJob job in finished.Take(surplus))
         {
             _jobs.TryRemove(job.Handle.JobId, out _);
         }
     }
 
+    /// <summary>One job: its handle, its work, and the moment it was first seen ended.</summary>
+    /// <param name="handle">The job's handle.</param>
+    /// <param name="exclusive">Whether it is an exclusive editor operation.</param>
+    /// <param name="progress">Where the work reports.</param>
+    /// <param name="task">The running work.</param>
     private sealed class FlaxJob(FlaxJobHandle handle, bool exclusive, FlaxJobProgress progress, Task<object> task)
     {
+        /// <summary>When the job was first seen ended.</summary>
         private DateTime? _endedUtc;
 
+        /// <summary>The job's handle.</summary>
         public FlaxJobHandle Handle { get; } = handle;
 
+        /// <summary>Whether it is an exclusive editor operation.</summary>
         public bool Exclusive { get; } = exclusive;
 
+        /// <summary>Where the work reports.</summary>
         public FlaxJobProgress Progress { get; } = progress;
 
+        /// <summary>The running work.</summary>
         public Task<object> Task { get; } = task;
 
+        /// <summary>The job's state now.</summary>
+        /// <returns>The state.</returns>
         public FlaxJobState State()
         {
-            var message = Progress.Latest().Message;
+            string? message = Progress.Latest().Message;
             if (!Task.IsCompleted)
             {
                 return new FlaxJobState(Handle.JobId, Handle.Kind, "running", Handle.StartedUtc, null, message, null, null);
             }
 
             _endedUtc ??= DateTime.UtcNow;
-            return Task.Status switch
+            if (Task.Status == TaskStatus.RanToCompletion)
             {
-                TaskStatus.RanToCompletion =>
-                    new FlaxJobState(Handle.JobId, Handle.Kind, "succeeded", Handle.StartedUtc, _endedUtc, message, Task.Result, null),
-                TaskStatus.Canceled =>
-                    new FlaxJobState(Handle.JobId, Handle.Kind, "canceled", Handle.StartedUtc, _endedUtc, message, null, "The job was canceled."),
-                _ =>
-                    new FlaxJobState(Handle.JobId, Handle.Kind, "failed", Handle.StartedUtc, _endedUtc, message, null,
-                        (Task.Exception!.InnerException ?? Task.Exception).Message),
-            };
+                return new FlaxJobState(Handle.JobId, Handle.Kind, "succeeded", Handle.StartedUtc, _endedUtc, message, Task.Result, null);
+            }
+
+            if (Task.Status == TaskStatus.Canceled)
+            {
+                return new FlaxJobState(Handle.JobId, Handle.Kind, "canceled", Handle.StartedUtc, _endedUtc, message, null, "The job was canceled.");
+            }
+
+            AggregateException failure = Task.Exception!;
+            Exception cause = failure.InnerException ?? failure;
+            return new FlaxJobState(Handle.JobId, Handle.Kind, "failed", Handle.StartedUtc, _endedUtc, message, null, cause.Message);
         }
     }
 }

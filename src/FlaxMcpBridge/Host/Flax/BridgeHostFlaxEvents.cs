@@ -15,7 +15,10 @@ namespace FlaxMcpBridge.Host.Flax;
 /// </remarks>
 public static class BridgeHostFlaxEvents
 {
+    /// <summary>Guards <see cref="_ring"/> while <see cref="Start"/> decides to subscribe.</summary>
     private static readonly object Gate = new();
+
+    /// <summary>The ring the events go to; null before <see cref="Start"/>.</summary>
     private static BridgeEventRing? _ring;
 
     /// <summary>Subscribes once per editor process; later calls do nothing.</summary>
@@ -47,16 +50,28 @@ public static class BridgeHostFlaxEvents
         Level.SceneUnloaded += (scene, id) => Record(BridgeEventKind.SceneUnloaded, scene?.Name);
     }
 
+    /// <summary>Records a managed log line.</summary>
+    /// <param name="level">The engine's log type.</param>
+    /// <param name="message">The log message.</param>
+    /// <param name="context">The object the line is about; not recorded.</param>
+    /// <param name="stackTrace">The stack trace; not recorded.</param>
     private static void OnLog(LogType level, string message, FlaxEngine.Object context, string stackTrace)
     {
         _ring?.Append(BridgeEventKind.Log, (byte)level, message);
     }
 
+    /// <summary>Records an exception that managed code logged.</summary>
+    /// <param name="exception">The exception.</param>
+    /// <param name="context">The object it is about; not recorded.</param>
     private static void OnException(Exception exception, FlaxEngine.Object context)
     {
-        _ring?.Append(BridgeEventKind.Exception, (byte)LogType.Error, exception.GetType().Name + ": " + exception.Message);
+        var text = exception.GetType().Name + ": " + exception.Message;
+        _ring?.Append(BridgeEventKind.Exception, (byte)LogType.Error, text);
     }
 
+    /// <summary>Records an event that has no log level.</summary>
+    /// <param name="kind">What happened.</param>
+    /// <param name="text">The scene name or id, or null.</param>
     private static void Record(BridgeEventKind kind, string? text = null)
     {
         _ring?.Append(kind, 0, text);

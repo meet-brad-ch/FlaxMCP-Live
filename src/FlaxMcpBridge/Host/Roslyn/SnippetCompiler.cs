@@ -24,9 +24,16 @@ namespace FlaxMcpBridge.Host.Roslyn;
 /// </remarks>
 public static class SnippetCompiler
 {
+    /// <summary>Guards <see cref="References"/> and <see cref="_roslynFolder"/>.</summary>
     private static readonly object Gate = new();
+
+    /// <summary>The loaded references by file path.</summary>
     private static readonly Dictionary<string, CachedReference> References = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The compiled images by source and references.</summary>
     private static readonly SnippetCache Images = new(64);
+
+    /// <summary>The folder of the engine's Roslyn assemblies, or null before <see cref="Configure"/>.</summary>
     private static string? _roslynFolder;
 
     /// <summary>Tells the host where the engine's Roslyn assemblies are; call before the first compile.</summary>
@@ -71,26 +78,35 @@ public static class SnippetCompiler
         return image;
     }
 
+    /// <summary>Compiles a snippet to an assembly image. Not inlined, so Roslyn loads only when it runs.</summary>
+    /// <param name="key">The cache key; its start names the assembly.</param>
+    /// <param name="source">The whole compilation unit.</param>
+    /// <param name="references">The assemblies it may use.</param>
+    /// <returns>The compiled assembly.</returns>
+    /// <exception cref="InvalidOperationException">The source does not compile; the message lists the errors.</exception>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static byte[] Emit(string key, string source, IReadOnlyList<CachedReference> references)
     {
-        var compilation = CSharpCompilation.Create(
-            "FlaxMcpDynamic_" + key[..16],
-            new[] { CSharpSyntaxTree.ParseText(source) },
-            references.Select(reference => (MetadataReference)reference.Reference),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var assemblyName = "FlaxMcpDynamic_" + key[..16];
+        var tree = CSharpSyntaxTree.ParseText(source);
+        var metadata = references.Select(reference => (MetadataReference)reference.Reference);
+        var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+        var compilation = CSharpCompilation.Create(assemblyName, new[] { tree }, metadata, options);
         using var image = new MemoryStream();
         var emitted = compilation.Emit(image);
         if (!emitted.Success)
         {
-            throw new InvalidOperationException(
-                "C# compilation failed: " + string.Join(Environment.NewLine,
-                    emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)));
+            var errors = emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+            var errorText = string.Join(Environment.NewLine, errors);
+            throw new InvalidOperationException("C# compilation failed: " + errorText);
         }
 
         return image.ToArray();
     }
 
+    /// <summary>Loads the references, reusing those whose file did not change.</summary>
+    /// <param name="paths">The assembly files.</param>
+    /// <returns>One reference per path, in order.</returns>
     private static IReadOnlyList<CachedReference> ReferencesFor(string[] paths)
     {
         lock (Gate)
@@ -99,10 +115,13 @@ public static class SnippetCompiler
             foreach (var path in paths)
             {
                 var file = new FileInfo(path);
+                var writeTicks = file.LastWriteTimeUtc.Ticks;
+                var length = file.Length;
                 if (!References.TryGetValue(path, out var reference) ||
-                    reference.WriteTicks != file.LastWriteTimeUtc.Ticks || reference.Length != file.Length)
+                    reference.WriteTicks != writeTicks || reference.Length != length)
                 {
-                    reference = new CachedReference(path, file.LastWriteTimeUtc.Ticks, file.Length, MetadataReference.CreateFromFile(path));
+                    var metadata = MetadataReference.CreateFromFile(path);
+                    reference = new CachedReference(path, writeTicks, length, metadata);
                     References[path] = reference;
                 }
 
@@ -113,6 +132,10 @@ public static class SnippetCompiler
         }
     }
 
+    /// <summary>Hashes a source and the state of its references into a cache key.</summary>
+    /// <param name="source">The compilation unit.</param>
+    /// <param name="references">The references.</param>
+    /// <returns>The hash as hexadecimal text.</returns>
     private static string Key(string source, IReadOnlyList<CachedReference> references)
     {
         var text = new StringBuilder(source);
@@ -121,9 +144,15 @@ public static class SnippetCompiler
             text.Append('\n').Append(reference.Path).Append('|').Append(reference.WriteTicks).Append('|').Append(reference.Length);
         }
 
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
+        var bytes = Encoding.UTF8.GetBytes(text.ToString());
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash);
     }
 
+    /// <summary>Loads a Roslyn assembly from the engine's folder when the Default context asks for it.</summary>
+    /// <param name="context">The context that asks.</param>
+    /// <param name="name">The assembly wanted.</param>
+    /// <returns>The assembly, or null when it is not a Roslyn assembly or the file is missing.</returns>
     private static Assembly? ResolveRoslyn(AssemblyLoadContext context, AssemblyName name)
     {
         if (name.Name is null || !name.Name.StartsWith("Microsoft.CodeAnalysis", StringComparison.Ordinal))
@@ -132,8 +161,18 @@ public static class SnippetCompiler
         }
 
         var path = Path.Combine(_roslynFolder!, name.Name + ".dll");
-        return File.Exists(path) ? context.LoadFromAssemblyPath(path) : null;
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        return context.LoadFromAssemblyPath(path);
     }
 
+    /// <summary>A loaded reference with the file state it was loaded from.</summary>
+    /// <param name="Path">The file path.</param>
+    /// <param name="WriteTicks">The file's last write time in UTC ticks.</param>
+    /// <param name="Length">The file's size in bytes.</param>
+    /// <param name="Reference">The loaded reference.</param>
     private sealed record CachedReference(string Path, long WriteTicks, long Length, PortableExecutableReference Reference);
 }
