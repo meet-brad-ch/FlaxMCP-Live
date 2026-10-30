@@ -6,6 +6,8 @@ version never changes tools.
 
 ## [Unreleased]
 
+## [0.2.0-preview.3]
+
 ### Fixed
 - The bridge host compiles also when the engine folder has old `<guid>_FlaxEngine.CSharp.dll` copies that a
   rebuild renamed aside (CS1704). The host now uses one reference for each assembly name, and the loaded assembly wins.
