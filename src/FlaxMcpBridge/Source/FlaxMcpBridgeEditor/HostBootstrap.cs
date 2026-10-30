@@ -240,35 +240,109 @@ internal static class HostBootstrap
         return assembly.GetType(EntryTypeName, throwOnError: true)!;
     }
 
-    /// <summary>Lists the references the host is compiled against: the runtime, the engine and Roslyn.</summary>
-    /// <returns>One metadata reference per managed assembly file.</returns>
+    /// <summary>
+    /// Lists the references the host is compiled against: the runtime, the engine and Roslyn, one file for each
+    /// assembly name. The trusted platform list names every managed file next to the editor, also old engine copies
+    /// that a rebuild renamed aside (<c>&lt;guid&gt;_FlaxEngine.CSharp.dll</c>). Two files with one name stop the
+    /// compile (CS1704), so the file of the assembly that the Default context loaded wins, else the first file.
+    /// </summary>
+    /// <returns>One metadata reference per assembly name.</returns>
     private static IEnumerable<MetadataReference> CompileReferences()
     {
-        string[] platform = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator);
+        string trustedList = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
+        string[] platform = trustedList.Split(Path.PathSeparator);
+        Dictionary<string, string> loaded = LoadedAssemblyFiles();
+        var fileByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string path in platform)
+        {
+            string? name = ManagedAssemblyName(path);
+            if (name is null)
+            {
+                continue;
+            }
+
+            if (fileByName.ContainsKey(name))
+            {
+                continue;
+            }
+
+            string file = path;
+            if (loaded.TryGetValue(name, out string? loadedFile))
+            {
+                file = loadedFile;
+            }
+
+            fileByName[name] = file;
+        }
 
         // The engine's managed assembly is in the Default load context too: the host may use it.
-        return platform.Where(IsManaged)
-            .Append(typeof(Debug).Assembly.Location)
-            .Append(Path.Combine(RoslynFolder, "Microsoft.CodeAnalysis.dll"))
-            .Append(Path.Combine(RoslynFolder, "Microsoft.CodeAnalysis.CSharp.dll"))
-            .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
-            .ToArray();
+        Assembly engine = typeof(Debug).Assembly;
+        string engineName = engine.GetName().Name!;
+        fileByName[engineName] = engine.Location;
+        string roslynFile = Path.Combine(RoslynFolder, "Microsoft.CodeAnalysis.dll");
+        fileByName["Microsoft.CodeAnalysis"] = roslynFile;
+        string roslynCSharpFile = Path.Combine(RoslynFolder, "Microsoft.CodeAnalysis.CSharp.dll");
+        fileByName["Microsoft.CodeAnalysis.CSharp"] = roslynCSharpFile;
+
+        var references = new List<MetadataReference>(fileByName.Count);
+        foreach (string file in fileByName.Values)
+        {
+            MetadataReference reference = MetadataReference.CreateFromFile(file);
+            references.Add(reference);
+        }
+
+        return references;
     }
 
-    /// <summary>Tells whether a file is a managed assembly.</summary>
+    /// <summary>Lists the files of the assemblies that the Default load context has loaded, by assembly name.</summary>
+    /// <returns>The file of each loaded assembly that has one; the first one for a name that is loaded twice.</returns>
+    private static Dictionary<string, string> LoadedAssemblyFiles()
+    {
+        var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (Assembly assembly in AssemblyLoadContext.Default.Assemblies)
+        {
+            // A dynamic or in-memory assembly (the host itself, a snippet) has no file to reference.
+            if (assembly.IsDynamic)
+            {
+                continue;
+            }
+
+            string location = assembly.Location;
+            if (location.Length == 0)
+            {
+                continue;
+            }
+
+            string? name = assembly.GetName().Name;
+            if (name is null)
+            {
+                continue;
+            }
+
+            if (files.ContainsKey(name))
+            {
+                continue;
+            }
+
+            files[name] = location;
+        }
+
+        return files;
+    }
+
+    /// <summary>Reads the assembly name of a file.</summary>
     /// <param name="path">The file path.</param>
-    /// <returns>False for a native library; true for a managed assembly.</returns>
-    private static bool IsManaged(string path)
+    /// <returns>The simple assembly name; null for a native library.</returns>
+    private static string? ManagedAssemblyName(string path)
     {
         try
         {
-            AssemblyName.GetAssemblyName(path);
-            return true;
+            return AssemblyName.GetAssemblyName(path).Name;
         }
         catch (BadImageFormatException)
         {
             // The trusted platform list also names the native libraries next to the runtime.
-            return false;
+            return null;
         }
     }
 
