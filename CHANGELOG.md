@@ -1,10 +1,14 @@
 # Changelog
 
 All notable changes to FlaxMCP-Live. The format follows [Keep a Changelog](https://keepachangelog.com), and the
-versions follow [Semantic Versioning](https://semver.org). Before 1.0, a minor version can change tools. A patch
-version never changes tools.
+versions follow [Semantic Versioning](https://semver.org). From 1.0, only a major version changes or removes a tool,
+a minor version adds tools, and a patch version never changes tools. Before 1.0, a minor version could change tools.
 
 ## [Unreleased]
+
+## [1.0.0]
+
+The first official release. The version has no pre-release label.
 
 ### Added
 - `editor_camera_screenshot`: a camera renders into its own render target, and the PNG is saved. It works with the

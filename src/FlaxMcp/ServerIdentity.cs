@@ -12,7 +12,7 @@ internal static class ServerIdentity
     /// <summary>The server's name.</summary>
     public const string Name = "FlaxMCP-Live";
 
-    /// <summary>The release version, for example "0.2.0-preview.3", without the source revision.</summary>
+    /// <summary>The release version, for example "1.0.0", without the source revision.</summary>
     public static string Version { get; } = ReadVersion();
 
     /// <summary>The identity for the MCP handshake.</summary>

@@ -20,7 +20,8 @@ It keeps all upstream tools and adds 16 tools. The code keeps the upstream names
 
 The name tells you that this fork is about this live loop.
 
-> **Status:** preview (see [CHANGELOG](CHANGELOG.md)). You install from source. There is no NuGet package yet.
+> **Status:** 1.0, the first official release (see [CHANGELOG](CHANGELOG.md)). You install from source. There is no
+> NuGet package yet.
 
 ## What you get
 

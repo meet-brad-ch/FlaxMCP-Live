@@ -1,6 +1,6 @@
 # FlaxMCP Tool Reference
 
-Generated from a live `tools/list` on FlaxMCP-Live 0.2.0-preview.3 (58 tools).
+Generated from a live `tools/list` on FlaxMCP-Live 1.0.0 (58 tools).
 `editor_execute_csharp` is only present when `FLAX_ALLOW_CODE_EXECUTION=true`.
 
 Regenerate with `scripts/dump_tools.py` after changing the server.
