@@ -28,7 +28,8 @@ jobs:
       - name: Release notes from the changelog
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk -v v="$version" '$0 ~ "^## \[" v "\]" {found=1; next} found && /^## \[/ {exit} found {print}' CHANGELOG.md > notes.md
+          # A literal match: as a regex, "[1.0.0]" is a bracket expression and misses the heading.
+          awk -v v="$version" 'index($0, "## [" v "]") == 1 {found=1; next} found && /^## \[/ {exit} found {print}' CHANGELOG.md > notes.md
           test -s notes.md
       - name: Create the GitHub release
         env:
