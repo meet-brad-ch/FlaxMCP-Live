@@ -15,6 +15,10 @@ version never changes tools.
 - The bridge protocol is version 20 (the `camera_screenshot` request). Publish the server and reconnect the client
   together with the plugin update.
 
+### Fixed
+- The MCP handshake gives the same name and version as `server_info`: FlaxMCP-Live and the release version. Before,
+  it gave the SDK default, FlaxMcp 0.2.0.0. The tools reference header takes both from the handshake.
+
 ## [0.2.0-preview.3]
 
 ### Fixed

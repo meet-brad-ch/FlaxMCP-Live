@@ -29,8 +29,9 @@ from typing import IO, ClassVar
 
 @dataclass(frozen=True)
 class ServerTools:
-    """What the server answered: its version and its tools (each as `tools/list` gives it)."""
+    """What the server answered: its name, its version and its tools (each as `tools/list` gives it)."""
 
+    name: str
     version: str
     tools: list
 
@@ -76,8 +77,9 @@ class McpSession:
             self._send(stdin, "notifications/initialized", notify=True)
             self._send(stdin, "tools/list")
             tools = json.loads(stdout.readline())["result"]["tools"]
-            # the server's version is required by MCP
-            return ServerTools(init["serverInfo"]["version"], tools)
+            # the server's name and version are required by MCP
+            info = init["serverInfo"]
+            return ServerTools(info["name"], info["version"], tools)
         finally:
             # the dump is done (or failed): the server goes at once, nothing of it is kept
             proc.kill()
@@ -210,7 +212,7 @@ class ToolReference:
         doc = [
             "# FlaxMCP Tool Reference",
             "",
-            f"Generated from a live `tools/list` on FlaxMcp {server.version} ({len(server.tools)} tools).",
+            f"Generated from a live `tools/list` on {server.name} {server.version} ({len(server.tools)} tools).",
             "`editor_execute_csharp` is only present when `FLAX_ALLOW_CODE_EXECUTION=true`.",
             "",
             "Regenerate with `scripts/dump_tools.py` after changing the server.",

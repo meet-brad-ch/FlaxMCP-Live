@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Reflection;
 using FlaxMcp.Flax;
 using ModelContextProtocol.Server;
 
@@ -19,10 +18,7 @@ public sealed class ServerInfoTool
     [Description("Returns the FlaxMcp server name and version.")]
     public ServerInfo GetServerInfo()
     {
-        var assembly = Assembly.GetExecutingAssembly();
-        var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        var version = informationalVersion?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
-        return new ServerInfo("FlaxMCP-Live", version);
+        return new ServerInfo(ServerIdentity.Name, ServerIdentity.Version);
     }
 
     [McpServerTool(Name = "flax_status", ReadOnly = true, UseStructuredContent = true)]
