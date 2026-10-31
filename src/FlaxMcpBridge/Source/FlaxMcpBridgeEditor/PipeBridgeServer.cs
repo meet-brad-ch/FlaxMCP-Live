@@ -24,7 +24,7 @@ namespace FlaxMcpBridge.Editor;
 /// </summary>
 internal sealed partial class PipeBridgeServer : IDisposable
 {
-    private const int ProtocolVersion = 19;
+    private const int ProtocolVersion = 20;
     private const int MaxSceneGraphDepth = 32;
     private const int MaxSceneGraphNodes = 500;
     private const double AssetLoadTimeoutMilliseconds = 3500;

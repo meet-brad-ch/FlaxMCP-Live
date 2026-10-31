@@ -11,7 +11,7 @@ internal static class ToolsetCompanions
     /// <summary>The companion tool classes of each main tool class that has some.</summary>
     private static readonly Dictionary<Type, Type[]> Companions = new()
     {
-        [typeof(EditorTools)] = [typeof(EditorLiveTools), typeof(EditorObjectTools)]
+        [typeof(EditorTools)] = [typeof(EditorLiveTools), typeof(EditorObjectTools), typeof(EditorScreenshotTools)]
     };
 
     /// <summary>Returns a toolset's main tool class followed by its companion tool classes.</summary>

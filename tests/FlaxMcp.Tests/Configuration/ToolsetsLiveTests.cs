@@ -13,6 +13,7 @@ public sealed class ToolsetsLiveTests
     {
         var types = Toolsets.Resolve("editor");
 
-        Assert.Equal([typeof(ServerInfoTool), typeof(EditorTools), typeof(EditorLiveTools), typeof(EditorObjectTools)], types);
+        Assert.Equal([typeof(ServerInfoTool), typeof(EditorTools), typeof(EditorLiveTools), typeof(EditorObjectTools),
+            typeof(EditorScreenshotTools)], types);
     }
 }

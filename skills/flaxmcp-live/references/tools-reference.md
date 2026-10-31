@@ -1,6 +1,6 @@
 # FlaxMCP Tool Reference
 
-Generated from a live `tools/list` on FlaxMcp 0.2.0.0 (57 tools).
+Generated from a live `tools/list` on FlaxMcp 0.2.0.0 (58 tools).
 `editor_execute_csharp` is only present when `FLAX_ALLOW_CODE_EXECUTION=true`.
 
 Regenerate with `scripts/dump_tools.py` after changing the server.
@@ -392,6 +392,18 @@ Captures the visible Flax Editor scene viewport to a PNG file. The output direct
 | Param | Type | Req | Notes |
 |---|---|---|---|
 | `path` | string | yes | Absolute or current-working-directory-relative output path ending in .png. |
+
+### `editor_camera_screenshot`
+
+Renders a camera into its own render target and saves a PNG. It does not read an editor window, so it works with the editor covered, small or minimised, in play mode and in edit mode. Camera: the given Camera actor. Without one: the main camera in play mode, else the editor viewport's view. The picture shows the 3D scene with the game's post effects, without editor or screen-space UI. Not available in headless mode. Replaces an existing file. Read the PNG to see it.
+
+| Param | Type | Req | Notes |
+|---|---|---|---|
+| `path` | string | yes | Absolute or current-working-directory-relative output path ending in .png. The folder must exist. |
+| `width` | integer | - | Picture width in pixels, 16..8192. (default: 1920) |
+| `height` | integer | - | Picture height in pixels, 16..8192. (default: 1080) |
+| `cameraId` | string? | - | A Camera actor's id (from editor_scene_graph or editor_find_actors). Empty: the main camera in play mode, else the editor viewport's view. |
+| `warmUpFrames` | integer | - | Frames the camera renders before the capture, 1..60, so that auto exposure settles. (default: 8) |
 
 ### `editor_execute_csharp`
 

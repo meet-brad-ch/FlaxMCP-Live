@@ -80,6 +80,10 @@ project to Flax.
   state (up to 35 s from protocol 19, as a job).
 - `editor_screenshot` needs a selected tab that has rendered. An unselected or idle viewport gives an error. A
   fallback to "any viewport with output" was tried and removed. It returned blank white images as success.
+- `editor_camera_screenshot` has none of these limits: a camera renders into its own target. A window capture of a
+  minimised editor gives a 160x28 picture of the title bar. This tool gives the full picture. In edit mode without a
+  camera id it renders the editor viewport's view, which stays at the origin until someone moves it. Game objects that
+  scripts build at play start exist only in play mode.
 
 ## Scenes
 

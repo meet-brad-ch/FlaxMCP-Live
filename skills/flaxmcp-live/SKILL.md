@@ -38,7 +38,7 @@ Read only the files that the current task needs.
 
 | File | Read it when |
 |---|---|
-| `references/tools-reference.md` | you need exact parameters. It has all 57 tools, generated from a live `tools/list` |
+| `references/tools-reference.md` | you need exact parameters. It has all 58 tools, generated from a live `tools/list` |
 | `references/workflows.md` | you do one of the six common jobs, or you write an `editor_execute_csharp` snippet |
 | `scripts/dump_tools.py` | the server rejects a tool name as unknown. Regenerate the reference with this script |
 | `references/flax-gotchas.md` | before real work in a Flax project. It covers compile/reload traps, the bridge host, stale assemblies and memory, scene saves, content import, materials and dynamic textures from code, time and input, the fast loop |
@@ -92,6 +92,9 @@ before you call `editor_save` over work that you did not make. Also ask before `
 ### 4. Examine the screenshot
 
 `editor_screenshot` returns a **path**, not an image. Read the PNG.
+
+Prefer `editor_camera_screenshot` when the editor window may be covered or minimised, or when the picture must have a
+fixed size: it renders the camera offscreen, so the window's state does not matter. It also returns a path.
 
 **Why:** tools returned `success` with correct-looking colour/roughness payloads, but the cube rendered
 solid black. A payload verifies the call, not the pixels. A visual change is not verified until you see it.
@@ -156,7 +159,7 @@ The parameters are in [tools-reference.md](references/tools-reference.md). Do no
 | `logs` | `logs_tail`, `logs_errors` | no |
 | `editor` (read) | `editor_scene_graph`, `editor_get_selection`, `editor_actor_details`, `editor_static_model_details`, `editor_box_collider_details`, `editor_host_status`, `editor_find_actors`, `editor_get_member` | **yes** |
 | `editor` (write) | `editor_create_actor`, `editor_duplicate_actor`, `editor_modify_actor`, `editor_rename_actor`, `editor_reparent_actor`, `editor_delete_actor`, `editor_set_selection`, `editor_set_static_model`, `editor_set_static_model_material`, `editor_create_box_collider`, `editor_set_box_collider`, `editor_save` | **yes** |
-| `editor` (session) | `editor_compile`, `editor_open_scene`, `editor_play_mode`, `editor_screenshot`, `editor_execute_csharp` | **yes** |
+| `editor` (session) | `editor_compile`, `editor_open_scene`, `editor_play_mode`, `editor_screenshot`, `editor_camera_screenshot`, `editor_execute_csharp` | **yes** |
 | `editor` (objects) | `editor_set_member`, `editor_invoke_method`, `editor_add_script` | **yes** |
 | `events` | `editor_events`, `editor_wait_for` | **yes** (the bridge host's ring, which also answers during reloads) |
 | `jobs` | `editor_job_start`, `job_status`, `job_wait` (progress notifications) | **yes** for editor jobs |
@@ -209,12 +212,12 @@ The full sequences are in [workflows.md](references/workflows.md).
 | `"A content item already exists at ..."` | You create over an existing asset. | Choose a new path, or delete the existing item first. |
 | Unknown tool name | The reference is different from the server. | Regenerate the reference with `scripts/dump_tools.py`. Never improvise a tool name. |
 
-The FlaxMCP-Live `README.md` lists the tools by toolset (55 by default, 57 with code execution). The generated
+The FlaxMCP-Live `README.md` lists the tools by toolset (56 by default, 58 with code execution). The generated
 reference and the live `tools/list` are the authority for parameters.
 
 ## Reference files
 
-- **[references/tools-reference.md](references/tools-reference.md)** — all 57 tools with parameter tables.
+- **[references/tools-reference.md](references/tools-reference.md)** — all 58 tools with parameter tables.
 - **[references/workflows.md](references/workflows.md)** — worked sequences, the `editor_execute_csharp`
   contract, and verified snippets.
 - **`scripts/dump_tools.py`** — regenerates the tool reference from a live server.

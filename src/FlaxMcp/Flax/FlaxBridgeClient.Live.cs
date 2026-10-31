@@ -118,11 +118,28 @@ public interface IFlaxEditorObjectClient
     Task<FlaxAddedScript> AddScriptAsync(string actorId, string scriptType, int? orderInParent, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Pictures that a camera renders offscreen, independent of the editor's windows.</summary>
+public interface IFlaxScreenshotClient
+{
+    /// <summary>Renders a camera into its own render target and saves it as a PNG.</summary>
+    /// <param name="path">The PNG file, absolute. Its folder exists. An existing file is replaced.</param>
+    /// <param name="width">The picture's width, in pixels.</param>
+    /// <param name="height">The picture's height, in pixels.</param>
+    /// <param name="cameraId">A Camera actor's id. Null: the main camera in play mode, else the editor viewport's view.</param>
+    /// <param name="warmUpFrames">The frames the camera renders before the capture.</param>
+    /// <param name="cancellationToken">Stops the request.</param>
+    /// <returns>The written file and what was rendered.</returns>
+    Task<FlaxCameraScreenshot> CaptureCameraScreenshotAsync(
+        string path, int width, int height, string? cameraId, int warmUpFrames, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// The live editor requests of this fork: waits for play mode and compiles, events, game commands, typed object access,
-/// the bridge host's status, the check that the editor process runs, and the second try of a query after a reload.
+/// camera screenshots, the bridge host's status, the check that the editor process runs, and the second try of a query
+/// after a reload.
 /// </summary>
-public sealed partial class FlaxBridgeClient : IFlaxGameCommandClient, IFlaxEditorEventClient, IFlaxEditorObjectClient
+public sealed partial class FlaxBridgeClient : IFlaxGameCommandClient, IFlaxEditorEventClient, IFlaxEditorObjectClient,
+    IFlaxScreenshotClient
 {
     /// <summary>The longest wait of one events_wait request.</summary>
     private const int EventWaitMilliseconds = 2000;
@@ -559,6 +576,14 @@ public sealed partial class FlaxBridgeClient : IFlaxGameCommandClient, IFlaxEdit
     public Task<FlaxGameCommandResult> RunGameCommandAsync(string name, string args, CancellationToken cancellationToken = default)
     {
         return CallAsync<FlaxGameCommandResult>(RequireHandshake(), "game_command", new { name, args }, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<FlaxCameraScreenshot> CaptureCameraScreenshotAsync(
+        string path, int width, int height, string? cameraId, int warmUpFrames, CancellationToken cancellationToken = default)
+    {
+        return CallAsync<FlaxCameraScreenshot>(
+            RequireHandshake(), "camera_screenshot", new { path, width, height, cameraId, warmUpFrames }, cancellationToken);
     }
 
     /// <summary>Sends a request without parameters for a poll; a failure that a reload or a lost session explains gives null.</summary>

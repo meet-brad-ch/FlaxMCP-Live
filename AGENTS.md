@@ -16,7 +16,7 @@
 
 FlaxMCP-Live is a preview release. Two things follow from that:
 
-- **The tool list in `README.md` is the current list.** The server has 57 tools (55 by default, 2 more with `FLAX_ALLOW_CODE_EXECUTION`). Before you use a tool, find its `[McpServerTool]` in `src/FlaxMcp/Tools/`.
+- **The tool list in `README.md` is the current list.** The server has 58 tools (56 by default, 2 more with `FLAX_ALLOW_CODE_EXECUTION`). Before you use a tool, find its `[McpServerTool]` in `src/FlaxMcp/Tools/`.
 - **The bridge has two parts.** The editor plugin (`src/FlaxMcpBridge/Source`) attaches to a bridge host (`src/FlaxMcpBridge/Host`). The plugin compiles the host one time for each editor process, and the host owns the named pipe. Thus the bridge stays connected when the editor reloads the scripts. The pipe protocol has a version number (`CurrentProtocolVersion` in `src/FlaxMcp/Flax/FlaxBridgeClient.cs`). Increase it when you change a pipe message.
 
 The local Flax Engine source checkout (wherever `FLAX_ENGINE_PATH`/`Source/` points) contains the C++ engine headers but **not** the C# `FlaxEditor` source — the editor's C# tooling (`FlaxEditor.Modules`, `FlaxEditor.Windows`, etc.) isn't available to read locally. When you need to know an exact API shape there, two things actually work:

@@ -6,6 +6,15 @@ version never changes tools.
 
 ## [Unreleased]
 
+### Added
+- `editor_camera_screenshot`: a camera renders into its own render target, and the PNG is saved. It works with the
+  editor covered, small or minimised, in play mode and in edit mode, at 16 to 8192 pixels per side. Camera: a Camera
+  actor, the main camera in play mode, or the editor viewport's view.
+
+### Changed
+- The bridge protocol is version 20 (the `camera_screenshot` request). Publish the server and reconnect the client
+  together with the plugin update.
+
 ## [0.2.0-preview.3]
 
 ### Fixed

@@ -151,6 +151,15 @@ public sealed record FlaxGameCommandInfo(string Name, string Description, string
 /// <param name="IsPlayMode">The editor was in play mode.</param>
 public sealed record FlaxGameCommandResult(int MainThreadId, string Name, string? Result, double Milliseconds, bool IsPlayMode);
 
+/// <summary>A picture that a camera rendered offscreen.</summary>
+/// <param name="Path">The written PNG file.</param>
+/// <param name="Bytes">The file's size.</param>
+/// <param name="Width">The picture's width, in pixels.</param>
+/// <param name="Height">The picture's height, in pixels.</param>
+/// <param name="Camera">What was rendered: the camera actor's name, "main camera" or "editor viewport".</param>
+/// <param name="IsPlayMode">The editor was in play mode.</param>
+public sealed record FlaxCameraScreenshot(string Path, long Bytes, int Width, int Height, string Camera, bool IsPlayMode);
+
 /// <summary>The editor's script compilation state.</summary>
 /// <param name="IsCompiling">The editor compiles scripts now.</param>
 /// <param name="LastCompilationFailed">The last compilation failed.</param>

@@ -59,7 +59,7 @@ Each step returns when its work is done. A script reload between the steps does 
 
 ## Tools
 
-The default configuration exposes 55 tools across ten toolsets. `server` is always enabled; every other toolset can be
+The default configuration exposes 56 tools across ten toolsets. `server` is always enabled; every other toolset can be
 selected with `FLAX_TOOLSETS`. Tools added in FlaxMCP-Live are in **bold**.
 
 | Toolset | Tools |
@@ -70,7 +70,7 @@ selected with `FLAX_TOOLSETS`. Tools added in FlaxMCP-Live are in **bold**.
 | `scene` | `scene_list`, `scene_outline`, `scene_find_actor` |
 | `build` | **`build_check_scripts`**, `build_generate_projects`, `build_compile_scripts`, `build_clear_cache`, `build_game` |
 | `logs` | `logs_tail`, `logs_errors` |
-| `editor` | `editor_scene_graph`, `editor_get_selection`, `editor_set_selection`, `editor_actor_details`, `editor_modify_actor`, `editor_create_actor`, `editor_duplicate_actor`, `editor_rename_actor`, `editor_reparent_actor`, `editor_delete_actor`, `editor_static_model_details`, `editor_set_static_model`, `editor_set_static_model_material`, `editor_box_collider_details`, `editor_create_box_collider`, `editor_set_box_collider`, `editor_save`, `editor_play_mode`, `editor_screenshot`, **`editor_compile`**, **`editor_open_scene`**, **`editor_host_status`**, **`editor_find_actors`**, **`editor_get_member`**, **`editor_set_member`**, **`editor_add_script`** |
+| `editor` | `editor_scene_graph`, `editor_get_selection`, `editor_set_selection`, `editor_actor_details`, `editor_modify_actor`, `editor_create_actor`, `editor_duplicate_actor`, `editor_rename_actor`, `editor_reparent_actor`, `editor_delete_actor`, `editor_static_model_details`, `editor_set_static_model`, `editor_set_static_model_material`, `editor_box_collider_details`, `editor_create_box_collider`, `editor_set_box_collider`, `editor_save`, `editor_play_mode`, `editor_screenshot`, **`editor_camera_screenshot`**, **`editor_compile`**, **`editor_open_scene`**, **`editor_host_status`**, **`editor_find_actors`**, **`editor_get_member`**, **`editor_set_member`**, **`editor_add_script`** |
 | `events` | **`editor_events`**, **`editor_wait_for`** |
 | `jobs` | **`editor_job_start`**, **`job_status`**, **`job_wait`** |
 | `game` | **`game_commands`**, **`game_command`** |
@@ -129,6 +129,10 @@ running, or when the editor process that opened the session has exited.
 Live scene reads include unsaved state. Write tools change selection and transforms, save modified scenes and assets, and
 control play mode with `start`, `pause`, `resume`, or `stop`. `editor_screenshot` writes a PNG of the visible scene viewport;
 it requires a GUI editor with a rendered viewport and does not work headlessly. Its destination directory must exist.
+`editor_camera_screenshot` renders a camera into its own render target instead: the given Camera actor, the main camera
+in play mode, or the editor viewport's view. It does not read an editor window, so it works with the editor covered,
+small or minimised, at any size from 16 to 8192 pixels per side. It shows the 3D scene with the game's post effects,
+without editor or screen-space UI.
 
 #### It survives script reloads
 
@@ -249,7 +253,7 @@ Call `server_info`, `project_info`, and `flax_status` as a basic verification.
 ### 4. Give your AI agent the usage skill
 
 The folder [`skills/flaxmcp-live`](skills/flaxmcp-live) is an agent skill. It tells an AI agent how to use the server:
-the order of the calls, the two kinds of IDs, the traps of the live editor, worked workflows and all 57 tools with their
+the order of the calls, the two kinds of IDs, the traps of the live editor, worked workflows and all 58 tools with their
 parameters. For Claude Code, copy the folder to `~/.claude/skills/` (for all your projects) or to `.claude/skills/` in
 your Flax project. Other agents that read `SKILL.md` files can use the same folder.
 

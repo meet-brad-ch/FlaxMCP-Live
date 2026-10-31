@@ -313,6 +313,32 @@ public sealed class FlaxBridgeClientLiveTests : IDisposable
         Assert.Contains("Registered: status.", exception.Message);
     }
 
+    /// <summary>A camera screenshot sends its size, camera and warm-up, and reads what the bridge rendered.</summary>
+    /// <returns>The test.</returns>
+    [Fact]
+    public async Task CaptureCameraScreenshotAsync_SendsTheRequestAndReadsTheResult()
+    {
+        string pipeName = FakeBridgeSession.NewPipeName();
+        _session.WriteHandshake(pipeName);
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        Task serverTask = FakeBridgeServer.ServeResponseAsync(
+            pipeName,
+            "{\"id\":1,\"result\":{\"path\":\"C:/shots/a.png\",\"bytes\":1234,\"width\":640,\"height\":360," +
+            "\"camera\":\"main camera\",\"isPlayMode\":true}}",
+            cancellationToken,
+            "camera_screenshot",
+            "\"width\":640,\"height\":360"
+        );
+        FlaxBridgeClient client = _session.CreateClient();
+
+        FlaxCameraScreenshot shot = await client.CaptureCameraScreenshotAsync("C:/shots/a.png", 640, 360, null, 4, cancellationToken);
+        await serverTask;
+
+        Assert.Equal(1234, shot.Bytes);
+        Assert.Equal("main camera", shot.Camera);
+        Assert.True(shot.IsPlayMode);
+    }
+
     /// <summary>A wait for an event skips the events without the text and returns the first match.</summary>
     /// <returns>The test.</returns>
     [Fact]

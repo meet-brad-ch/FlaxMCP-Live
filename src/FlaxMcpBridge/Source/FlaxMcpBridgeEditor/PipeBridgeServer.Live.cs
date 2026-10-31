@@ -148,6 +148,11 @@ internal sealed partial class PipeBridgeServer
                 RequireParam(root, "actorId"), RequireParam(root, "scriptType"), OptionalIntParam(root, "orderInParent")
             ),
             "game_command" => await RunGameCommandAsync(RequireParam(root, "name"), OptionalParam(root, "args") ?? ""),
+            "camera_screenshot" => await CaptureCameraScreenshotAsync(
+                RequireParam(root, "path"), OptionalIntParam(root, "width") ?? DefaultScreenshotWidth,
+                OptionalIntParam(root, "height") ?? DefaultScreenshotHeight, OptionalParam(root, "cameraId"),
+                OptionalIntParam(root, "warmUpFrames") ?? DefaultWarmUpFrames
+            ),
             _ => throw new InvalidOperationException($"Unknown method '{method}'"),
         };
         return result;
