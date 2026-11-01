@@ -29,6 +29,7 @@ public sealed class FlaxHeadlessEditorRunner
         var projectFolder = Path.GetDirectoryName(projectFile)!;
         var enginePath = EngineLocator.Resolve(options.EnginePath);
         var editorExecutable = EngineLocator.ResolveEditorExecutable(enginePath, options.EditorConfig);
+        EngineVersionCheck.Require(enginePath, projectFile);
 
         using var lease = _sessionGuard.Acquire(projectFolder);
 

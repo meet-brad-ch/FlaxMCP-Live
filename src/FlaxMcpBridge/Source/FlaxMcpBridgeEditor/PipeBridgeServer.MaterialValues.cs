@@ -6,7 +6,7 @@ namespace FlaxMcpBridge.Editor;
 
 /// <summary>
 /// The value of a material input, for content_material_details: a constant node, or a Get Parameter node that reads a
-/// parameter of the graph. Materials that content_create_transparent_material makes, and many that people make in the
+/// parameter of the graph. Materials that content_create_material_transparent makes, and many that people make in the
 /// editor, drive their inputs with parameters.
 /// </summary>
 internal sealed partial class PipeBridgeServer

@@ -31,7 +31,7 @@ public sealed class ContentMaterialTools
     /// <param name="cancellationToken">Stops the call.</param>
     /// <returns>The created material.</returns>
     /// <exception cref="McpException">The path is not a .flax path, or a value is out of range.</exception>
-    [McpServerTool(Name = "content_create_transparent_material", UseStructuredContent = true)]
+    [McpServerTool(Name = "content_create_material_transparent", UseStructuredContent = true)]
     [Description(
         "Creates a transparent surface Material (blend mode Transparent, Lit) through the live Flax Editor, for glass, " +
         "water or film. Opacity 0 is fully clear. Refraction is the material's Refraction input: 1 bends nothing. " +

@@ -13,6 +13,7 @@ the constraints that cause problems in practice.
 - [4b. Drive the game: play, commands, events, live objects](#4b-drive-the-game-play-commands-events-live-objects)
 - [5. Build a small scene](#5-build-a-small-scene)
 - [6. Diagnose a failure](#6-diagnose-a-failure)
+- [7. Cook a standalone game](#7-cook-a-standalone-game)
 - [The editor_execute_csharp contract](#the-editor_execute_csharp-contract)
 - [Verified snippets](#verified-snippets)
 
@@ -116,10 +117,10 @@ A plain material that `content_create_material` creates exposes **no** public pa
 `content_set_material_instance_parameter` has nothing to set on its instances, unless the base graph
 declares some. Supported parameter types are `Color, Float, Vector2, Vector3, Vector4, Texture, Bool`.
 
-For glass or water, use `content_create_transparent_material`. `content_create_material` makes opaque materials only:
+For glass or water, use `content_create_material_transparent`. `content_create_material` makes opaque materials only:
 
 ```python
-content_create_transparent_material(
+content_create_material_transparent(
     relativePath="Materials/BottleGlass.flax",   # no asset may exist there: delete the old one first
     baseColor={"r": 0.78, "g": 0.92, "b": 0.86, "a": 1},
     opacity=0.3,          # 0.12 reads as a ghost of an object; 0.3 reads as clear glass
@@ -243,6 +244,37 @@ Use a targeted `editor_execute_csharp` probe only after you read the logs. Let t
 Play mode: `editor_play_mode(action="start"|"stop"|"pause"|"resume")`. When you enter or leave play mode, the scene
 reloads, and the bridge can disconnect for a short time. If a later call fails, run `flax_status` again.
 Runtime changes made during play are discarded on stop.
+
+---
+
+## 7. Cook a standalone game
+
+`build_game` runs a headless editor (`-build <preset>.<target>`), so it needs the GUI editor closed. With the editor
+open, cook through the editor's own game cooker instead, and wait for its result line in the log:
+
+```python
+editor_execute_csharp(code='bool failed = FlaxEditor.GameCooker.Build(FlaxEngine.BuildPlatform.Windows64, '
+    'FlaxEngine.BuildConfiguration.Release, FlaxEngine.Globals.ProjectFolder + "/Output/WindowsRelease", '
+    'FlaxEngine.BuildOptions.None, null, null, null); return failed ? "refused" : "started";')
+# then poll logs_tail until "Game building done!" or "Game building failed!" appears;
+# FlaxEditor.GameCooker.IsRunning tells whether it still runs. A cached cook takes about 15 s.
+```
+
+Before the first cook of a project whose scripts load assets at run time:
+
+1. **Reference every run-time asset from one settings asset.** A cook packs only the assets that a scene or a
+   setting references; a script's `Content.Load(path)` then returns null in the game. Write a `JsonAsset` whose data
+   lists each asset with its path (an editor-only builder: `Editor.SaveJsonAsset`), register it in the game settings'
+   `CustomSettings`, and load through it in the game (`Engine.GetCustomSettings(key)`). Engine assets (the
+   `Editor/Primitives` models, `Editor/Fonts`, `Editor/SimplySky`) count too.
+2. **`Globals.EngineContentFolder` exists only in the editor.** Game code that uses it does not compile in a cook;
+   put it under `#if FLAX_EDITOR` or behind the settings asset above.
+3. **Set the names and the window in the settings, with the editor closed** (see flax-gotchas, Cooking): the exe's
+   name is Build Settings' `OutputName` (the project's name by default); the window title and the log folder
+   (`%LOCALAPPDATA%\<CompanyName>\<ProductName>`) come from Game Settings; Windows Platform Settings'
+   `RunInBackground` keeps the game running while another window has the focus.
+
+Check the cooked game by running it: the window title, its log (`Product: ...` on the first lines) and the run.
 
 ---
 

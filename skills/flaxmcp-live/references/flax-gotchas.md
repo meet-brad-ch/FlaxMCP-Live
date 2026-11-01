@@ -80,7 +80,7 @@ project to Flax.
   state (up to 35 s from protocol 19, as a job).
 - `editor_screenshot` needs a selected tab that has rendered. An unselected or idle viewport gives an error. A
   fallback to "any viewport with output" was tried and removed. It returned blank white images as success.
-- `content_create_material` makes opaque materials only. `content_create_transparent_material` makes glass and
+- `content_create_material` makes opaque materials only. `content_create_material_transparent` makes glass and
   water (blend mode Transparent). Its `refraction` is Flax's Refraction input, and Flax applies it as a strong screen
   distortion: 1.03 already shrank the juice inside a 7.5 cm bottle to about 40 % of its width. Use 1.0 for glass with
   something inside. Opacity 0.12 made bottles read as ghosts; 0.3 read as clear glass. The four values are public
@@ -172,6 +172,21 @@ project to Flax.
   `Texture`'s `SetPixels`.
 - **The sun's shadow map ends at the light's `ShadowsDistance`** (600 m in the measured project). Effects that must
   reach the horizon (cloud shadows) need their own pass, not shadow casters.
+
+## Cooking
+
+- **A settings file edited on disk while the editor runs does not reach the cook.** The editor keeps the settings it
+  loaded and cooks with them: a cooked game kept its old window title and company although the JSON had new ones.
+  Close the editor, edit, start it again; or change the settings through the editor (`Editor.SaveJsonAsset`).
+- **`build_game` with a launcher install older than the project** started the older editor, which exited with -1
+  and wrote no project log. The server now refuses it with both versions named: set `FLAX_ENGINE_PATH` to the
+  project's engine (a source build has no launcher entry).
+- **The cook keeps old files in the output folder.** After `OutputName` changes, the old exe stays next to the new
+  one: delete the output folder before the cook.
+- **`RunInBackground` is false by default:** an unfocused game pauses. A game that serves other programs (a plant
+  simulation with a separate controller window) needs it true.
+- **A script reload drops `DontSave` actors.** Test actors made with `editor_execute_csharp` and `HideFlags.DontSave`
+  are gone after `editor_compile` reloads.
 
 ## The fast loop
 

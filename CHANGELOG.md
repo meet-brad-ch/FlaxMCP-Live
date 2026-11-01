@@ -11,13 +11,16 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 One new tool, for glass and water.
 
 ### Added
-- `content_create_transparent_material`: a Lit material with blend mode Transparent and screen-space reflections,
+- `content_create_material_transparent`: a Lit material with blend mode Transparent and screen-space reflections,
   for glass, water and film, which `content_create_material` cannot make. Its base color, opacity, roughness and
   Refraction input are public parameters (`BaseColor`, `Opacity`, `Roughness`, `Refraction`), so
   `content_create_material_instance` makes variants of one material. Its description warns that Flax's Refraction
   input distorts strongly: use 1.0 for glass with something inside.
 
 ### Fixed
+- `build_game` and the other headless editor runs refuse an engine older than the project's `MinEngineVersion`,
+  with both versions in the message. Before, a launcher install older than the project ran, exited with -1 and
+  wrote no project log, so the result said only `exitCode: -1`.
 - `content_material_details` reads an input that a material parameter drives (a Get Parameter node) as that
   parameter's value. It refused such materials before, as "an unsupported base color expression".
 

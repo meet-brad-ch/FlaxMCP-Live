@@ -110,7 +110,7 @@ Sets one validated parameter override on an existing MaterialInstance and saves 
 | `parameterName` | string | yes | Existing public parameter name on the base material. |
 | `value` | any | yes | Value matching the parameter's declared type. |
 
-### `content_create_transparent_material`
+### `content_create_material_transparent`
 
 Creates a transparent surface Material (blend mode Transparent, Lit) through the live Flax Editor, for glass, water or film. Opacity 0 is fully clear. Refraction is the material's Refraction input: 1 bends nothing. Flax applies it as a strong screen distortion: 1.03 already shrinks objects behind a bottle-sized surface to about 40 % of their width, as through thick glass. Use 1.0 for thin glass with something inside (a bottle with liquid), and values above 1 only for a lens effect. The material traces screen-space reflections. Its four values are public parameters named BaseColor, Opacity, Roughness and Refraction, so content_create_material_instance makes variants (a tint, frosted or thicker glass, water) of one material. Paths are relative to Content/ and must end in .flax. No asset may exist at the path.
 

@@ -20,7 +20,7 @@ It keeps all upstream tools and adds 16 tools. The code keeps the upstream names
 
 The name tells you that this fork is about this live loop.
 
-> **Status:** 1.0, the first official release (see [CHANGELOG](CHANGELOG.md)). You install from source. There is no
+> **Status:** 1.1 (see [CHANGELOG](CHANGELOG.md)). You install from source. There is no
 > NuGet package yet.
 
 ## What you get
@@ -67,7 +67,7 @@ selected with `FLAX_TOOLSETS`. Tools added in FlaxMCP-Live are in **bold**.
 |---|---|
 | `server` | `server_info`, `flax_status` |
 | `project` | `project_info`, `project_targets`, `project_settings` |
-| `content` | `content_search`, `content_asset_info`, `content_resolve_guid`, `content_material_details`, `content_create_material`, `content_create_material_instance`, `content_set_material_instance_parameter`, **`content_create_transparent_material`** |
+| `content` | `content_search`, `content_asset_info`, `content_resolve_guid`, `content_material_details`, `content_create_material`, `content_create_material_instance`, `content_set_material_instance_parameter`, **`content_create_material_transparent`** |
 | `scene` | `scene_list`, `scene_outline`, `scene_find_actor` |
 | `build` | **`build_check_scripts`**, `build_generate_projects`, `build_compile_scripts`, `build_clear_cache`, `build_game` |
 | `logs` | `logs_tail`, `logs_errors` |

@@ -20,7 +20,7 @@ public class BridgeGamePlugin : GamePlugin
             Author = "FlaxMCP-Live",
             RepositoryUrl = "https://github.com/meet-brad-ch/FlaxMCP-Live",
             Description = "Runtime counterpart of the FlaxMcp editor bridge plugin.",
-            Version = new Version(1, 0, 0),
+            Version = new Version(1, 1, 0),
             IsAlpha = true,
             IsBeta = false,
         };
