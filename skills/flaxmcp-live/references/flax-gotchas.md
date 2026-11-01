@@ -83,7 +83,8 @@ project to Flax.
 - `content_create_material` makes opaque materials only. `content_create_transparent_material` makes glass and
   water (blend mode Transparent). Its `refraction` is Flax's Refraction input, and Flax applies it as a strong screen
   distortion: 1.03 already shrank the juice inside a 7.5 cm bottle to about 40 % of its width. Use 1.0 for glass with
-  something inside.
+  something inside. Opacity 0.12 made bottles read as ghosts; 0.3 read as clear glass. The four values are public
+  parameters, so an instance changes them without a new material.
 - `editor_camera_screenshot` has none of these limits: a camera renders into its own target. A window capture of a
   minimised editor gives a 160x28 picture of the title bar. This tool gives the full picture. In edit mode without a
   camera id it renders the editor viewport's view, which stays at the origin until someone moves it. Game objects that

@@ -1,6 +1,6 @@
 # FlaxMCP Tool Reference
 
-Generated from a live `tools/list` on FlaxMCP-Live 1.0.0 (59 tools).
+Generated from a live `tools/list` on FlaxMCP-Live 1.1.0 (59 tools).
 `editor_execute_csharp` is only present when `FLAX_ALLOW_CODE_EXECUTION=true`.
 
 Regenerate with `scripts/dump_tools.py` after changing the server.
@@ -112,7 +112,7 @@ Sets one validated parameter override on an existing MaterialInstance and saves 
 
 ### `content_create_transparent_material`
 
-Creates a transparent surface Material (blend mode Transparent, Lit) through the live Flax Editor, for glass, water or film. Opacity 0 is fully clear. Refraction is the material's Refraction input: 1 bends nothing. Flax applies it as a strong screen distortion: 1.03 already shrinks objects behind a bottle-sized surface to about 40 % of their width, as through thick glass. Use 1.0 for thin glass with something inside (a bottle with liquid), and values above 1 only for a lens effect. Paths are relative to Content/ and must end in .flax. No asset may exist at the path.
+Creates a transparent surface Material (blend mode Transparent, Lit) through the live Flax Editor, for glass, water or film. Opacity 0 is fully clear. Refraction is the material's Refraction input: 1 bends nothing. Flax applies it as a strong screen distortion: 1.03 already shrinks objects behind a bottle-sized surface to about 40 % of their width, as through thick glass. Use 1.0 for thin glass with something inside (a bottle with liquid), and values above 1 only for a lens effect. The material traces screen-space reflections. Its four values are public parameters named BaseColor, Opacity, Roughness and Refraction, so content_create_material_instance makes variants (a tint, frosted or thicker glass, water) of one material. Paths are relative to Content/ and must end in .flax. No asset may exist at the path.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|
@@ -121,7 +121,6 @@ Creates a transparent surface Material (blend mode Transparent, Lit) through the
 | `opacity` | number | yes | Opacity in 0..1. 0 is fully clear, 1 is opaque. Clear glass: about 0.1 to 0.25. |
 | `roughness` | number | yes | Surface roughness in 0..1. Polished glass: about 0.05. |
 | `refraction` | number | - | Refraction input in 1..3. 1 bends nothing. Even 1.03 visibly shrinks what is behind the surface. (default: 1) |
-| `screenSpaceReflections` | boolean | - | Trace screen-space reflections on the surface. (default: true) |
 
 ## Scene (offline file parsing)
 

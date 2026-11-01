@@ -18,7 +18,7 @@ public sealed class ContentMaterialToolsTests
         var client = new StubMaterialClient();
         var tool = new ContentMaterialTools(client);
 
-        await tool.CreateTransparentMaterialAsync("Materials/Glass.flax", ClearGlass, 0.15, 0.05, 1.05, false,
+        await tool.CreateTransparentMaterialAsync("Materials/Glass.flax", ClearGlass, 0.15, 0.05, 1.05,
             TestContext.Current.CancellationToken);
 
         Assert.Equal("Materials/Glass.flax", client.Path);
@@ -26,13 +26,12 @@ public sealed class ContentMaterialToolsTests
         Assert.Equal(0.15, client.Opacity);
         Assert.Equal(0.05, client.Roughness);
         Assert.Equal(1.05, client.Refraction);
-        Assert.False(client.ScreenSpaceReflections);
     }
 
-    /// <summary>Without refraction and reflection values, the tool bends nothing and traces reflections.</summary>
+    /// <summary>Without a refraction value, the tool bends nothing.</summary>
     /// <returns>The test.</returns>
     [Fact]
-    public async Task CreateTransparentMaterialAsync_DefaultsToNoBendingWithReflections()
+    public async Task CreateTransparentMaterialAsync_DefaultsToNoBending()
     {
         var client = new StubMaterialClient();
         var tool = new ContentMaterialTools(client);
@@ -41,7 +40,6 @@ public sealed class ContentMaterialToolsTests
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1.0, client.Refraction);
-        Assert.True(client.ScreenSpaceReflections);
     }
 
     /// <summary>A path without the .flax extension is refused before the bridge is called.</summary>
@@ -114,9 +112,6 @@ public sealed class ContentMaterialToolsTests
         /// <summary>The requested index of refraction.</summary>
         public double Refraction { get; private set; }
 
-        /// <summary>Whether reflections were requested.</summary>
-        public bool ScreenSpaceReflections { get; private set; }
-
         /// <inheritdoc />
         public Task<FlaxTransparentMaterial> CreateTransparentMaterialAsync(
             string relativePath, FlaxTransparentMaterialRequest request, CancellationToken cancellationToken = default)
@@ -126,9 +121,8 @@ public sealed class ContentMaterialToolsTests
             Opacity = request.Opacity;
             Roughness = request.Roughness;
             Refraction = request.Refraction;
-            ScreenSpaceReflections = request.ScreenSpaceReflections;
             return Task.FromResult(new FlaxTransparentMaterial(1, "id", relativePath, "Transparent", request.BaseColor,
-                request.Opacity, request.Roughness, request.Refraction, request.ScreenSpaceReflections));
+                request.Opacity, request.Roughness, request.Refraction, ["BaseColor", "Opacity", "Roughness", "Refraction"]));
         }
     }
 }

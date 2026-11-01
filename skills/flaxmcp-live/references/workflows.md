@@ -125,7 +125,17 @@ content_create_transparent_material(
     opacity=0.3,          # 0.12 reads as a ghost of an object; 0.3 reads as clear glass
     roughness=0.05,
     refraction=1.0,       # keep 1.0 when something is inside: 1.03 already shrinks it to ~40 % of its width
-    screenSpaceReflections=True,
+)
+```
+
+The four values are public parameters named `BaseColor`, `Opacity`, `Roughness` and `Refraction`. Make variants of one
+glass with instances instead of more materials:
+
+```python
+content_create_material_instance(
+    relativePath="Materials/BottleGlassAmber.flax",
+    baseMaterialId="<materialId from the call above>",
+    parameters={"BaseColor": {"r": 0.75, "g": 0.45, "b": 0.12, "a": 1}, "Opacity": 0.5},
 )
 ```
 

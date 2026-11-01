@@ -156,7 +156,7 @@ internal sealed partial class PipeBridgeServer
             "create_transparent_material" => await CreateTransparentMaterialAsync(
                 RequireParam(root, "relativePath"), RequireObjectParam(root, "baseColor"),
                 RequireDoubleParam(root, "opacity"), RequireDoubleParam(root, "roughness"),
-                RequireDoubleParam(root, "refraction"), RequireBoolParam(root, "screenSpaceReflections")
+                RequireDoubleParam(root, "refraction")
             ),
             _ => throw new InvalidOperationException($"Unknown method '{method}'"),
         };

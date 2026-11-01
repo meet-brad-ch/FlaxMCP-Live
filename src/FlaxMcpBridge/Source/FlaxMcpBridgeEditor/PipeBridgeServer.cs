@@ -24,7 +24,7 @@ namespace FlaxMcpBridge.Editor;
 /// </summary>
 internal sealed partial class PipeBridgeServer : IDisposable
 {
-    private const int ProtocolVersion = 21;
+    private const int ProtocolVersion = 22;
     private const int MaxSceneGraphDepth = 32;
     private const int MaxSceneGraphNodes = 500;
     private const double AssetLoadTimeoutMilliseconds = 3500;
@@ -1006,8 +1006,7 @@ internal sealed partial class PipeBridgeServer : IDisposable
             var main = surface.Nodes.Single(node => node.Type == 65537);
             var colorSource = GetSource(main, 1);
             var baseTexture = FindNode(colorSource, 5, 1);
-            var colorNode = FindNode(colorSource, 2, 7) ??
-                throw UnsupportedMaterialGraph("base color");
+            var baseColor = ReadBaseColor(colorSource);
             var roughness = GetRequiredFloatValue(main, 6, "roughness");
             var metallic = GetRequiredFloatValue(main, 4, "metallic");
             var normalTexture = FindNode(GetSource(main, 8), 5, 4);
@@ -1020,7 +1019,7 @@ internal sealed partial class PipeBridgeServer : IDisposable
                 mainThreadId = Globals.MainThreadID,
                 materialId = FormatContentGuid(material.ID),
                 materialPath = material.Path,
-                baseColor = BuildColor((Color)colorNode.Values[0]),
+                baseColor = BuildColor(baseColor),
                 roughness,
                 metallic,
                 emissiveColor = emissiveNode?.Values?[0] is Color emissive ? BuildColor(emissive) : null,
@@ -1066,7 +1065,7 @@ internal sealed partial class PipeBridgeServer : IDisposable
 
     private static float GetRequiredFloatValue(SurfaceNode main, int inputBox, string propertyName)
     {
-        return GetSource(main, inputBox)?.Values?[0] is float value ?
+        return ReadNodeValue(GetSource(main, inputBox)) is float value ?
             value :
             throw UnsupportedMaterialGraph(propertyName);
     }

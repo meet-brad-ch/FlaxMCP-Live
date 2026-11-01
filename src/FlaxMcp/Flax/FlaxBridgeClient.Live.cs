@@ -609,7 +609,6 @@ public sealed partial class FlaxBridgeClient : IFlaxGameCommandClient, IFlaxEdit
             opacity = request.Opacity,
             roughness = request.Roughness,
             refraction = request.Refraction,
-            screenSpaceReflections = request.ScreenSpaceReflections,
         };
         return CallAsync<FlaxTransparentMaterial>(
             RequireHandshake(), "create_transparent_material", parameters, cancellationToken);

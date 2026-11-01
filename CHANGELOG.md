@@ -6,15 +6,24 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 
 ## [Unreleased]
 
+## [1.1.0]
+
+One new tool, for glass and water.
+
 ### Added
-- `content_create_transparent_material`: a Lit material with blend mode Transparent and constant base color,
-  opacity, roughness and Refraction input, with optional screen-space reflections. For glass and water, which
-  `content_create_material` cannot make. Its description warns that Flax's Refraction input distorts strongly: use 1.0
-  for glass with something inside.
+- `content_create_transparent_material`: a Lit material with blend mode Transparent and screen-space reflections,
+  for glass, water and film, which `content_create_material` cannot make. Its base color, opacity, roughness and
+  Refraction input are public parameters (`BaseColor`, `Opacity`, `Roughness`, `Refraction`), so
+  `content_create_material_instance` makes variants of one material. Its description warns that Flax's Refraction
+  input distorts strongly: use 1.0 for glass with something inside.
+
+### Fixed
+- `content_material_details` reads an input that a material parameter drives (a Get Parameter node) as that
+  parameter's value. It refused such materials before, as "an unsupported base color expression".
 
 ### Changed
-- The bridge protocol is version 21 (the `create_transparent_material` request). A server at 21 cannot ask a plugin
-  at 20 to compile: restart the editor after the update.
+- The bridge protocol is version 22 (the `create_transparent_material` request). A server at 22 cannot ask an older
+  plugin to compile: restart the editor after the update.
 
 ## [1.0.0]
 
