@@ -157,8 +157,14 @@ class ToolReference:
         ),
         (
             "Editor - session (live)",
-            ("editor_compile", "editor_open_scene", "editor_play_mode", "editor_screenshot", "editor_camera_screenshot",
-             "editor_execute_csharp"),
+            (
+                "editor_compile",
+                "editor_open_scene",
+                "editor_play_mode",
+                "editor_screenshot",
+                "editor_camera_screenshot",
+                "editor_execute_csharp",
+            ),
         ),
         (
             "Editor - live objects (typed, instead of snippets)",
