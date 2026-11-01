@@ -28,6 +28,7 @@ builder.Services.AddSingleton<IFlaxGameCommandClient>(services => services.GetRe
 builder.Services.AddSingleton<IFlaxEditorEventClient>(services => services.GetRequiredService<FlaxBridgeClient>());
 builder.Services.AddSingleton<IFlaxEditorObjectClient>(services => services.GetRequiredService<FlaxBridgeClient>());
 builder.Services.AddSingleton<IFlaxScreenshotClient>(services => services.GetRequiredService<FlaxBridgeClient>());
+builder.Services.AddSingleton<IFlaxMaterialClient>(services => services.GetRequiredService<FlaxBridgeClient>());
 builder.Services.AddSingleton<FlaxHeadlessEditorRunner>();
 builder.Services.AddSingleton<FlaxJobManager>();
 builder.Services.AddSingleton<IFlaxScriptChecker, FlaxScriptChecker>();

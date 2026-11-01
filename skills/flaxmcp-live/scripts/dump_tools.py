@@ -112,6 +112,7 @@ class ToolReference:
                 "content_create_material",
                 "content_create_material_instance",
                 "content_set_material_instance_parameter",
+                "content_create_transparent_material",
             ),
         ),
         ("Scene (offline file parsing)", ("scene_list", "scene_outline", "scene_find_actor")),

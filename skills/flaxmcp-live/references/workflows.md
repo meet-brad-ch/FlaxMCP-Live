@@ -116,6 +116,21 @@ A plain material that `content_create_material` creates exposes **no** public pa
 `content_set_material_instance_parameter` has nothing to set on its instances, unless the base graph
 declares some. Supported parameter types are `Color, Float, Vector2, Vector3, Vector4, Texture, Bool`.
 
+For glass or water, use `content_create_transparent_material`. `content_create_material` makes opaque materials only:
+
+```python
+content_create_transparent_material(
+    relativePath="Materials/BottleGlass.flax",   # no asset may exist there: delete the old one first
+    baseColor={"r": 0.78, "g": 0.92, "b": 0.86, "a": 1},
+    opacity=0.3,          # 0.12 reads as a ghost of an object; 0.3 reads as clear glass
+    roughness=0.05,
+    refraction=1.0,       # keep 1.0 when something is inside: 1.03 already shrinks it to ~40 % of its width
+    screenSpaceReflections=True,
+)
+```
+
+Assign it and check it with a camera screenshot, with the object in front of a lit background.
+
 ---
 
 ## 4. Compile scripts while the editor is open

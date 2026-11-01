@@ -93,7 +93,7 @@ public partial interface IFlaxBridgeClient
 
 public sealed partial class FlaxBridgeClient : IFlaxBridgeClient
 {
-    internal const int CurrentProtocolVersion = 20;
+    internal const int CurrentProtocolVersion = 21;
     private static readonly TimeSpan ConnectionTimeout = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
 

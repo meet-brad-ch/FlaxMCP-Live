@@ -38,7 +38,7 @@ Read only the files that the current task needs.
 
 | File | Read it when |
 |---|---|
-| `references/tools-reference.md` | you need exact parameters. It has all 58 tools, generated from a live `tools/list` |
+| `references/tools-reference.md` | you need exact parameters. It has all 59 tools, generated from a live `tools/list` |
 | `references/workflows.md` | you do one of the six common jobs, or you write an `editor_execute_csharp` snippet |
 | `scripts/dump_tools.py` | the server rejects a tool name as unknown. Regenerate the reference with this script |
 | `references/flax-gotchas.md` | before real work in a Flax project. It covers compile/reload traps, the bridge host, stale assemblies and memory, scene saves, content import, materials and dynamic textures from code, time and input, the fast loop |
@@ -212,12 +212,12 @@ The full sequences are in [workflows.md](references/workflows.md).
 | `"A content item already exists at ..."` | You create over an existing asset. | Choose a new path, or delete the existing item first. |
 | Unknown tool name | The reference is different from the server. | Regenerate the reference with `scripts/dump_tools.py`. Never improvise a tool name. |
 
-The FlaxMCP-Live `README.md` lists the tools by toolset (56 by default, 58 with code execution). The generated
+The FlaxMCP-Live `README.md` lists the tools by toolset (57 by default, 59 with code execution). The generated
 reference and the live `tools/list` are the authority for parameters.
 
 ## Reference files
 
-- **[references/tools-reference.md](references/tools-reference.md)** — all 58 tools with parameter tables.
+- **[references/tools-reference.md](references/tools-reference.md)** — all 59 tools with parameter tables.
 - **[references/workflows.md](references/workflows.md)** — worked sequences, the `editor_execute_csharp`
   contract, and verified snippets.
 - **`scripts/dump_tools.py`** — regenerates the tool reference from a live server.

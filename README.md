@@ -60,14 +60,14 @@ Each step returns when its work is done. A script reload between the steps does 
 
 ## Tools
 
-The default configuration exposes 56 tools across ten toolsets. `server` is always enabled; every other toolset can be
+The default configuration exposes 57 tools across ten toolsets. `server` is always enabled; every other toolset can be
 selected with `FLAX_TOOLSETS`. Tools added in FlaxMCP-Live are in **bold**.
 
 | Toolset | Tools |
 |---|---|
 | `server` | `server_info`, `flax_status` |
 | `project` | `project_info`, `project_targets`, `project_settings` |
-| `content` | `content_search`, `content_asset_info`, `content_resolve_guid`, `content_material_details`, `content_create_material`, `content_create_material_instance`, `content_set_material_instance_parameter` |
+| `content` | `content_search`, `content_asset_info`, `content_resolve_guid`, `content_material_details`, `content_create_material`, `content_create_material_instance`, `content_set_material_instance_parameter`, **`content_create_transparent_material`** |
 | `scene` | `scene_list`, `scene_outline`, `scene_find_actor` |
 | `build` | **`build_check_scripts`**, `build_generate_projects`, `build_compile_scripts`, `build_clear_cache`, `build_game` |
 | `logs` | `logs_tail`, `logs_errors` |
@@ -254,7 +254,7 @@ Call `server_info`, `project_info`, and `flax_status` as a basic verification.
 ### 4. Give your AI agent the usage skill
 
 The folder [`skills/flaxmcp-live`](skills/flaxmcp-live) is an agent skill. It tells an AI agent how to use the server:
-the order of the calls, the two kinds of IDs, the traps of the live editor, worked workflows and all 58 tools with their
+the order of the calls, the two kinds of IDs, the traps of the live editor, worked workflows and all 59 tools with their
 parameters. For Claude Code, copy the folder to `~/.claude/skills/` (for all your projects) or to `.claude/skills/` in
 your Flax project. Other agents that read `SKILL.md` files can use the same folder.
 

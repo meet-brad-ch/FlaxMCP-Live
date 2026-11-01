@@ -153,6 +153,11 @@ internal sealed partial class PipeBridgeServer
                 OptionalIntParam(root, "height") ?? DefaultScreenshotHeight, OptionalParam(root, "cameraId"),
                 OptionalIntParam(root, "warmUpFrames") ?? DefaultWarmUpFrames
             ),
+            "create_transparent_material" => await CreateTransparentMaterialAsync(
+                RequireParam(root, "relativePath"), RequireObjectParam(root, "baseColor"),
+                RequireDoubleParam(root, "opacity"), RequireDoubleParam(root, "roughness"),
+                RequireDoubleParam(root, "refraction"), RequireBoolParam(root, "screenSpaceReflections")
+            ),
             _ => throw new InvalidOperationException($"Unknown method '{method}'"),
         };
         return result;

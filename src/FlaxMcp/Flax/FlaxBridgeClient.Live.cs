@@ -133,13 +133,25 @@ public interface IFlaxScreenshotClient
         string path, int width, int height, string? cameraId, int warmUpFrames, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Material assets that the upstream content tools cannot make.</summary>
+public interface IFlaxMaterialClient
+{
+    /// <summary>Creates a transparent Lit material with constant inputs.</summary>
+    /// <param name="relativePath">The asset path below Content, ending in .flax.</param>
+    /// <param name="request">The material's values.</param>
+    /// <param name="cancellationToken">Stops the request.</param>
+    /// <returns>The created material.</returns>
+    Task<FlaxTransparentMaterial> CreateTransparentMaterialAsync(
+        string relativePath, FlaxTransparentMaterialRequest request, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// The live editor requests of this fork: waits for play mode and compiles, events, game commands, typed object access,
-/// camera screenshots, the bridge host's status, the check that the editor process runs, and the second try of a query
-/// after a reload.
+/// camera screenshots, transparent materials, the bridge host's status, the check that the editor process runs, and the
+/// second try of a query after a reload.
 /// </summary>
 public sealed partial class FlaxBridgeClient : IFlaxGameCommandClient, IFlaxEditorEventClient, IFlaxEditorObjectClient,
-    IFlaxScreenshotClient
+    IFlaxScreenshotClient, IFlaxMaterialClient
 {
     /// <summary>The longest wait of one events_wait request.</summary>
     private const int EventWaitMilliseconds = 2000;
@@ -584,6 +596,23 @@ public sealed partial class FlaxBridgeClient : IFlaxGameCommandClient, IFlaxEdit
     {
         return CallAsync<FlaxCameraScreenshot>(
             RequireHandshake(), "camera_screenshot", new { path, width, height, cameraId, warmUpFrames }, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<FlaxTransparentMaterial> CreateTransparentMaterialAsync(
+        string relativePath, FlaxTransparentMaterialRequest request, CancellationToken cancellationToken = default)
+    {
+        var parameters = new
+        {
+            relativePath,
+            baseColor = request.BaseColor,
+            opacity = request.Opacity,
+            roughness = request.Roughness,
+            refraction = request.Refraction,
+            screenSpaceReflections = request.ScreenSpaceReflections,
+        };
+        return CallAsync<FlaxTransparentMaterial>(
+            RequireHandshake(), "create_transparent_material", parameters, cancellationToken);
     }
 
     /// <summary>Sends a request without parameters for a poll; a failure that a reload or a lost session explains gives null.</summary>

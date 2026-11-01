@@ -6,6 +6,16 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 
 ## [Unreleased]
 
+### Added
+- `content_create_transparent_material`: a Lit material with blend mode Transparent and constant base color,
+  opacity, roughness and Refraction input, with optional screen-space reflections. For glass and water, which
+  `content_create_material` cannot make. Its description warns that Flax's Refraction input distorts strongly: use 1.0
+  for glass with something inside.
+
+### Changed
+- The bridge protocol is version 21 (the `create_transparent_material` request). A server at 21 cannot ask a plugin
+  at 20 to compile: restart the editor after the update.
+
 ## [1.0.0]
 
 The first official release. The version has no pre-release label.

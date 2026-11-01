@@ -313,6 +313,35 @@ public sealed class FlaxBridgeClientLiveTests : IDisposable
         Assert.Contains("Registered: status.", exception.Message);
     }
 
+    /// <summary>A transparent material request sends its values, and the answer is read back.</summary>
+    /// <returns>The test.</returns>
+    [Fact]
+    public async Task CreateTransparentMaterialAsync_SendsTheRequestAndReadsTheResult()
+    {
+        string pipeName = FakeBridgeSession.NewPipeName();
+        _session.WriteHandshake(pipeName);
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        Task serverTask = FakeBridgeServer.ServeResponseAsync(
+            pipeName,
+            "{\"id\":1,\"result\":{\"mainThreadId\":1,\"materialId\":\"abc\",\"materialPath\":\"C:/p/Glass.flax\"," +
+            "\"blendMode\":\"Transparent\",\"baseColor\":{\"r\":1,\"g\":1,\"b\":1,\"a\":1},\"opacity\":0.15," +
+            "\"roughness\":0.05,\"refraction\":1.05,\"screenSpaceReflections\":true}}",
+            cancellationToken,
+            "create_transparent_material",
+            "\"opacity\":0.15,\"roughness\":0.05,\"refraction\":1.05"
+        );
+        FlaxBridgeClient client = _session.CreateClient();
+
+        var request = new FlaxTransparentMaterialRequest(new FlaxColor(1, 1, 1), 0.15, 0.05, 1.05, true);
+        FlaxTransparentMaterial material = await client.CreateTransparentMaterialAsync(
+            "Materials/Glass.flax", request, cancellationToken);
+        await serverTask;
+
+        Assert.Equal("Transparent", material.BlendMode);
+        Assert.Equal(1.05, material.Refraction);
+        Assert.True(material.ScreenSpaceReflections);
+    }
+
     /// <summary>A camera screenshot sends its size, camera and warm-up, and reads what the bridge rendered.</summary>
     /// <returns>The test.</returns>
     [Fact]

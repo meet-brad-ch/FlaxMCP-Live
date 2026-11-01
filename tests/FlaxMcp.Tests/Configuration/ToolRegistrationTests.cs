@@ -47,6 +47,7 @@ public sealed class ToolRegistrationTests
         Assert.Contains(tools, tool => tool.ProtocolTool.Name == "editor_play_mode");
         Assert.Contains(tools, tool => tool.ProtocolTool.Name == "editor_screenshot");
         Assert.Contains(tools, tool => tool.ProtocolTool.Name == "editor_camera_screenshot");
+        Assert.Contains(tools, tool => tool.ProtocolTool.Name == "content_create_transparent_material");
         Assert.DoesNotContain(tools, tool => tool.ProtocolTool.Name == "editor_execute_csharp");
         Assert.DoesNotContain(tools, tool => tool.ProtocolTool.Name == "editor_invoke_method");
         Assert.Contains(tools, tool => tool.ProtocolTool.Name == "editor_set_member");
@@ -107,6 +108,7 @@ public sealed class ToolRegistrationTests
         Assert.DoesNotContain("editor_play_mode", names);
         Assert.DoesNotContain("editor_screenshot", names);
         Assert.DoesNotContain("editor_camera_screenshot", names);
+        Assert.DoesNotContain("content_create_transparent_material", names);
         Assert.DoesNotContain("editor_execute_csharp", names);
     }
 

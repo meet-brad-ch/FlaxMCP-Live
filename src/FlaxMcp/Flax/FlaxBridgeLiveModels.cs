@@ -160,6 +160,29 @@ public sealed record FlaxGameCommandResult(int MainThreadId, string Name, string
 /// <param name="IsPlayMode">The editor was in play mode.</param>
 public sealed record FlaxCameraScreenshot(string Path, long Bytes, int Width, int Height, string Camera, bool IsPlayMode);
 
+/// <summary>The values of a transparent material to create.</summary>
+/// <param name="BaseColor">The base color.</param>
+/// <param name="Opacity">0 for fully clear, 1 for opaque.</param>
+/// <param name="Roughness">The surface roughness, 0..1.</param>
+/// <param name="Refraction">The index of refraction, 1..3. 1 bends nothing.</param>
+/// <param name="ScreenSpaceReflections">Whether the material traces screen-space reflections.</param>
+public sealed record FlaxTransparentMaterialRequest(
+    FlaxColor BaseColor, double Opacity, double Roughness, double Refraction, bool ScreenSpaceReflections);
+
+/// <summary>A transparent material that the bridge created.</summary>
+/// <param name="MainThreadId">The editor's main thread id.</param>
+/// <param name="MaterialId">The asset's id.</param>
+/// <param name="MaterialPath">The asset's path.</param>
+/// <param name="BlendMode">Always "Transparent".</param>
+/// <param name="BaseColor">The base color.</param>
+/// <param name="Opacity">0 for fully clear, 1 for opaque.</param>
+/// <param name="Roughness">The surface roughness.</param>
+/// <param name="Refraction">The index of refraction. 1 bends nothing.</param>
+/// <param name="ScreenSpaceReflections">The material traces screen-space reflections.</param>
+public sealed record FlaxTransparentMaterial(
+    int MainThreadId, string MaterialId, string MaterialPath, string BlendMode, FlaxColor BaseColor, double Opacity,
+    double Roughness, double Refraction, bool ScreenSpaceReflections);
+
 /// <summary>The editor's script compilation state.</summary>
 /// <param name="IsCompiling">The editor compiles scripts now.</param>
 /// <param name="LastCompilationFailed">The last compilation failed.</param>
