@@ -6,6 +6,13 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 
 ## [Unreleased]
 
+## [1.1.1]
+
+### Fixed
+- The tool list has no boolean schema `true` (any value) now. The server writes the empty schema `{}`, which has the
+  same meaning. A client that checks the list with the MCP TypeScript SDK (Glama does) refused the whole list,
+  because of `editor_get_member`, `editor_set_member`, `job_status`, `job_wait` and other tools that return any JSON.
+
 ## [1.1.0]
 
 One new tool, for glass and water.
