@@ -8,7 +8,7 @@
     <PackageType>McpServer;DotnetTool</PackageType>
     <ToolCommandName>flax-mcp-live</ToolCommandName>
     <PackageId>FlaxMcp-Live</PackageId>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>1.1.1</VersionPrefix>
     <Description>MCP server for Flax Engine projects with a live editor bridge: unattended compile, play and test loops.</Description>
     <PackageTags>mcp;mcp-server;flax;flax-engine;game-development;live-editor</PackageTags>
     <RepositoryUrl>https://github.com/meet-brad-ch/FlaxMCP-Live</RepositoryUrl>
