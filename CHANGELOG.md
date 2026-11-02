@@ -6,6 +6,11 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 
 ## [Unreleased]
 
+### Fixed
+- `editor_execute_csharp`: when the code leaves work running that holds its assembly (a Task, a thread, an event
+  subscription), the error now says that the code ran, gives its result and names what holds the assembly. Before,
+  it said only "The dynamic C# assembly could not be unloaded", which read as if the code had not run.
+
 ## [1.1.2]
 
 ### Changed

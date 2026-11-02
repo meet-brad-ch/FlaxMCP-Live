@@ -1647,7 +1647,20 @@ internal sealed partial class PipeBridgeServer : IDisposable
 
         if (execution.LoadContext.IsAlive)
         {
-            throw new InvalidOperationException("The dynamic C# assembly could not be unloaded.");
+            // The code ran: its effects happen and continue. Say so, with its result, and what keeps its assembly loaded.
+            object? returned = execution.Result is IDictionary<string, object?> answer && answer.TryGetValue("result", out var value)
+                ? value
+                : execution.Result;
+            var result = JsonSerializer.Serialize(returned);
+            if (result.Length > 200)
+            {
+                result = result[..200] + "...";
+            }
+
+            throw new InvalidOperationException(
+                $"The code ran and returned {result}, but its dynamic C# assembly could not be unloaded: something " +
+                "the code started or registered still uses it (a running Task or thread, an event subscription, a static " +
+                "reference). That work continues. Wait for it inside the code, or remove the subscription before returning.");
         }
 
         return execution.Result;
