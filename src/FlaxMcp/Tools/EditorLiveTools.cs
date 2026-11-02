@@ -36,11 +36,13 @@ public sealed class EditorLiveTools
     /// <exception cref="McpException">The compile is still running after its deadline, or failed.</exception>
     [McpServerTool(Name = "editor_compile", UseStructuredContent = true)]
     [Description(
-        "Compiles the project's scripts and returns when the editor has reloaded and settled. The scripts are first " +
-        "compiled outside the editor with the compiler arguments Flax.Build last used (build_check_scripts): errors " +
-        "come back at once, structured (file, line, column, code), and the editor is not touched. A clean check goes on " +
-        "to the editor's compile; its outcome is reloaded, unchanged or failed (build tool lines in BuildErrors). Check " +
-        "says how the check went (passed, failed, or unavailable with the reason). Stops play mode first."
+        "Compiles the project's scripts and returns when the editor has reloaded and settled. First, the tool compiles " +
+        "the scripts outside the editor with the compiler arguments that Flax.Build last used (build_check_scripts). " +
+        "Errors come back at once, structured (file, line, column, code), and the editor does not change. After a " +
+        "clean check, the tool stops play mode and the editor compiles. The outcome is reloaded, unchanged or failed " +
+        "(build tool lines in BuildErrors). Check tells how the check went: passed, failed, or unavailable with the " +
+        "reason. Use this tool when the editor is open. With no editor, use build_compile_scripts. To find errors " +
+        "without a change in the editor, use build_check_scripts."
     )]
     public Task<FlaxEditorCompileResult> CompileAsync(
         IProgress<ProgressNotificationValue>? progress = null,

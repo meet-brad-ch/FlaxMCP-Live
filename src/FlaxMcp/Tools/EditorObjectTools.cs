@@ -30,9 +30,11 @@ public sealed class EditorObjectTools
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="limit"/> is out of range.</exception>
     [McpServerTool(Name = "editor_find_actors", ReadOnly = true, UseStructuredContent = true)]
     [Description(
-        "Finds actors in the loaded scenes (the play-time scene during play) by name, actor type and script type, all " +
-        "optional and combined. Types match by full or short name. Returns id, name, type, path from the scene and " +
-        "the scripts' types; Truncated is true when more than the limit matched."
+        "Finds actors in the scenes that are open in the running editor (the play-time scene during play), with the " +
+        "unsaved changes. The filters are name, actor type and script type. All are optional, and they combine. Types " +
+        "match by full or short name. Returns id, name, type, path from the scene and the types of the scripts. " +
+        "Truncated is true when more than the limit matched. For a saved .scene or .prefab file without the editor, " +
+        "use scene_find_actor. For the full tree, use editor_scene_graph."
     )]
     public Task<FlaxFoundActors> FindActorsAsync(
         [Description("Part of the actor's name, case-insensitive.")] string? nameContains = null,

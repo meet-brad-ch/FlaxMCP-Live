@@ -39,10 +39,12 @@ public sealed class JobTools
     /// <exception cref="McpException">The kind is unknown, open_scene has no path, or another editor job runs.</exception>
     [McpServerTool(Name = "editor_job_start", UseStructuredContent = true)]
     [Description(
-        "Starts a long editor operation as a job and returns at once: compile (compile scripts and wait until the " +
-        "editor has reloaded and settled), play_start, play_stop, play_pause, play_resume, open_scene (path). Editor " +
-        "jobs run one at a time: another one while one runs fails with job_conflict naming it. Follow the job with " +
-        "job_wait or job_status; its result is what editor_compile, editor_play_mode or editor_open_scene return."
+        "Starts a long editor operation as a job and returns at once. The kinds are compile (compile the scripts and " +
+        "wait until the editor has reloaded and settled), play_start, play_stop, play_pause, play_resume and " +
+        "open_scene (path). Editor jobs run one at a time. A second job while one runs fails with job_conflict, which " +
+        "names the running job. Follow the job with job_wait or job_status. Its result is the result of " +
+        "editor_compile, editor_play_mode or editor_open_scene. Use this tool instead of those tools when the client " +
+        "must not wait, or when it does other work and then checks the job."
     )]
     public FlaxJobHandle StartEditorJob(
         [Description("compile, play_start, play_stop, play_pause, play_resume or open_scene.")] string kind,

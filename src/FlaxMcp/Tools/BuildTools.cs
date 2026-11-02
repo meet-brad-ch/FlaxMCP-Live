@@ -49,7 +49,7 @@ public sealed class BuildTools
     }
 
     [McpServerTool(Name = "build_check_scripts", ReadOnly = true, UseStructuredContent = true)]
-    [Description("Compiles the project's script modules (and those of the projects it references) outside the editor, with the compiler arguments Flax.Build last used and the modules' current files, into a scratch folder. Returns passed, failed or unavailable (never built yet: Reason says why) with structured errors and warnings (file, line, column, code) and each module's outcome. Works while the editor is open, also during play mode; changes nothing in the project.")]
+    [Description("Compiles the project's script modules, and those of the projects it references, outside the editor into a scratch folder. It uses the compiler arguments that Flax.Build last used and the current files of the modules. Returns passed, failed or unavailable (never built: Reason tells why), with structured errors and warnings (file, line, column, code) and the outcome of each module. It works while the editor is open, also during play mode. It changes nothing in the project. Use it to find compile errors fast. It does not load the change into the editor: for that, use editor_compile.")]
     public Task<FlaxScriptCheckResult> CheckScriptsAsync(CancellationToken cancellationToken)
     {
         return _checker.CheckAsync(cancellationToken);

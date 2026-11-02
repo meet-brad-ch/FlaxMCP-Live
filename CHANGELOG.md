@@ -6,6 +6,16 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 
 ## [Unreleased]
 
+## [1.1.2]
+
+### Changed
+- Ten tool descriptions tell an agent when to use the tool instead of a similar tool: `scene_find_actor` and
+  `editor_find_actors`, `scene_outline` and `editor_scene_graph`, `build_compile_scripts`, `build_check_scripts` and
+  `editor_compile`, and `editor_job_start`. `content_create_material` and `editor_duplicate_actor` also tell what
+  they change: no overwrite, the sceneId or parentId rule, the world transform, undo and save.
+- The fork keeps its descriptions of upstream tools in `ToolDescriptions.cs`, so the upstream files do not change. No
+  tool, parameter or result changes.
+
 ## [1.1.1]
 
 ### Fixed

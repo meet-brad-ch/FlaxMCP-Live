@@ -19,7 +19,7 @@ public static class ToolRegistration
                 services.AddSingleton<McpServerTool>(serviceProvider => McpServerTool.Create(
                         capturedMethod,
                         _ => ActivatorUtilities.CreateInstance(serviceProvider, capturedType),
-                        new McpServerToolCreateOptions { Services = serviceProvider, SerializerOptions = ToolSerialization.Options, SchemaCreateOptions = ToolSerialization.SchemaOptions }
+                        ToolSerialization.CreateOptions(serviceProvider, capturedMethod)
                     )
                 );
                 registered++;

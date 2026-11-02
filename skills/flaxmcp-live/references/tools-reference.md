@@ -1,6 +1,6 @@
 # FlaxMCP Tool Reference
 
-Generated from a live `tools/list` on FlaxMCP-Live 1.1.0 (59 tools).
+Generated from a live `tools/list` on FlaxMCP-Live 1.1.1 (59 tools).
 `editor_execute_csharp` is only present when `FLAX_ALLOW_CODE_EXECUTION=true`.
 
 Regenerate with `scripts/dump_tools.py` after changing the server.
@@ -77,7 +77,7 @@ Returns typed values, texture references, UV tiling, and exposed parameters for 
 
 ### `content_create_material`
 
-Creates a surface Material asset through the live Flax Editor. Paths are relative to Content/ and must end in .flax.
+Creates a surface Material asset through the live Flax Editor and saves it. relativePath is relative to Content/ and ends in .flax. The tool does not overwrite: it fails when an asset exists at that path. It creates missing folders. The editor does not record an Undo step. Texture ids are asset GUIDs of 32 hex digits: get them from content_search. normalTextureId must be a texture that is imported as a normal map. For glass, water or film, use content_create_material_transparent. For a variant of an existing material, use content_create_material_instance.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|
@@ -132,7 +132,7 @@ _No parameters._
 
 ### `scene_outline`
 
-Reads a .scene/.prefab file's actor tree, built from ParentID linkage (not file order). Scripts attached to an actor are listed on that actor's Scripts, not as child nodes. Truncated is true if the configured depth/node-count limit was hit.
+Reads the actor tree of a saved .scene or .prefab file on disk. The tree comes from the ParentID links, not from the file order. The scripts of an actor are in its Scripts list, not in its child nodes. Truncated is true when the tool reached the depth or node limit. The tool does not see unsaved changes. For the live tree in the running editor, use editor_scene_graph.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|
@@ -140,7 +140,7 @@ Reads a .scene/.prefab file's actor tree, built from ParentID linkage (not file 
 
 ### `scene_find_actor`
 
-Searches a .scene/.prefab file's actors by partial Name match and/or exact TypeName.
+Searches the actors of a saved .scene or .prefab file on disk. Name matches a part of the actor name, TypeName matches the full type name, and both ignore case. The tool does not need the editor and does not see unsaved changes. It returns the first 100 matches. For the scenes in the running editor, use editor_find_actors.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|
@@ -152,13 +152,13 @@ Searches a .scene/.prefab file's actors by partial Name match and/or exact TypeN
 
 ### `build_check_scripts`
 
-Compiles the project's script modules (and those of the projects it references) outside the editor, with the compiler arguments Flax.Build last used and the modules' current files, into a scratch folder. Returns passed, failed or unavailable (never built yet: Reason says why) with structured errors and warnings (file, line, column, code) and each module's outcome. Works while the editor is open, also during play mode; changes nothing in the project.
+Compiles the project's script modules, and those of the projects it references, outside the editor into a scratch folder. It uses the compiler arguments that Flax.Build last used and the current files of the modules. Returns passed, failed or unavailable (never built: Reason tells why), with structured errors and warnings (file, line, column, code) and the outcome of each module. It works while the editor is open, also during play mode. It changes nothing in the project. Use it to find compile errors fast. It does not load the change into the editor: for that, use editor_compile.
 
 _No parameters._
 
 ### `build_compile_scripts`
 
-Compiles game scripts headlessly. Returns structured compiler errors (file/line/code/message) parsed from the engine log, not a raw log dump.
+Compiles the game scripts in a separate headless Flax Editor process, with a time limit of 2 minutes. Returns structured compiler errors (file, line, code, message) from the engine log. The tool fails when a Flax Editor is open on the project. With the editor open, use build_check_scripts to find errors, or editor_compile to compile and reload.
 
 _No parameters._
 
@@ -205,7 +205,7 @@ _No parameters._
 
 ### `editor_scene_graph`
 
-Returns the live actor tree from every scene loaded in the Flax Editor, including unsaved runtime state. Truncated is true when the 500-node or 32-level response limit is reached.
+Returns the live actor tree of every scene that is open in the running Flax Editor, with the unsaved changes. Truncated is true when the tree has more than 500 nodes or 32 levels. For a saved .scene or .prefab file without the editor, use scene_outline. To find actors by name or type, use editor_find_actors.
 
 _No parameters._
 
@@ -273,7 +273,7 @@ Creates an allowlisted EmptyActor or StaticModel in a loaded scene and returns i
 
 ### `editor_duplicate_actor`
 
-Duplicates a loaded actor into a loaded scene or parent and returns the duplicate's live details.
+Duplicates a loaded actor, with its children and scripts, into a loaded scene or under a loaded parent actor. Returns the live details of the duplicate. Set exactly one of sceneId and parentId, and set the other to null. name is the name of the duplicate. Its children keep their names. translation, orientation and scale set the world transform of the duplicate. The source actor does not change. The editor records an Undo step. The scene stays unsaved until editor_save. To make a new actor of a type, use editor_create_actor. To move an actor to a different parent, use editor_reparent_actor.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|
@@ -377,7 +377,7 @@ _No parameters._
 
 ### `editor_compile`
 
-Compiles the project's scripts and returns when the editor has reloaded and settled. The scripts are first compiled outside the editor with the compiler arguments Flax.Build last used (build_check_scripts): errors come back at once, structured (file, line, column, code), and the editor is not touched. A clean check goes on to the editor's compile; its outcome is reloaded, unchanged or failed (build tool lines in BuildErrors). Check says how the check went (passed, failed, or unavailable with the reason). Stops play mode first.
+Compiles the project's scripts and returns when the editor has reloaded and settled. First, the tool compiles the scripts outside the editor with the compiler arguments that Flax.Build last used (build_check_scripts). Errors come back at once, structured (file, line, column, code), and the editor does not change. After a clean check, the tool stops play mode and the editor compiles. The outcome is reloaded, unchanged or failed (build tool lines in BuildErrors). Check tells how the check went: passed, failed, or unavailable with the reason. Use this tool when the editor is open. With no editor, use build_compile_scripts. To find errors without a change in the editor, use build_check_scripts.
 
 _No parameters._
 
@@ -429,7 +429,7 @@ DANGER: Compiles and executes arbitrary C# with the Flax Editor process's full m
 
 ### `editor_find_actors`
 
-Finds actors in the loaded scenes (the play-time scene during play) by name, actor type and script type, all optional and combined. Types match by full or short name. Returns id, name, type, path from the scene and the scripts' types; Truncated is true when more than the limit matched.
+Finds actors in the scenes that are open in the running editor (the play-time scene during play), with the unsaved changes. The filters are name, actor type and script type. All are optional, and they combine. Types match by full or short name. Returns id, name, type, path from the scene and the types of the scripts. Truncated is true when more than the limit matched. For a saved .scene or .prefab file without the editor, use scene_find_actor. For the full tree, use editor_scene_graph.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|
@@ -509,7 +509,7 @@ Waits for the first editor event of a kind (see editor_events), optionally with 
 
 ### `editor_job_start`
 
-Starts a long editor operation as a job and returns at once: compile (compile scripts and wait until the editor has reloaded and settled), play_start, play_stop, play_pause, play_resume, open_scene (path). Editor jobs run one at a time: another one while one runs fails with job_conflict naming it. Follow the job with job_wait or job_status; its result is what editor_compile, editor_play_mode or editor_open_scene return.
+Starts a long editor operation as a job and returns at once. The kinds are compile (compile the scripts and wait until the editor has reloaded and settled), play_start, play_stop, play_pause, play_resume and open_scene (path). Editor jobs run one at a time. A second job while one runs fails with job_conflict, which names the running job. Follow the job with job_wait or job_status. Its result is the result of editor_compile, editor_play_mode or editor_open_scene. Use this tool instead of those tools when the client must not wait, or when it does other work and then checks the job.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|

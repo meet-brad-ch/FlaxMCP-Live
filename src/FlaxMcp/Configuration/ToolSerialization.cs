@@ -1,12 +1,14 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol;
+using ModelContextProtocol.Server;
 
 namespace FlaxMcp.Configuration;
 
-/// <summary>The JSON options with which the tools write their results.</summary>
+/// <summary>The options with which the tools are made: JSON, schemas and the fork's descriptions.</summary>
 internal static class ToolSerialization
 {
     /// <summary>
@@ -24,6 +26,22 @@ internal static class ToolSerialization
     /// </summary>
     public static AIJsonSchemaCreateOptions SchemaOptions { get; } =
         new() { TransformSchemaNode = (_, node) => ObjectSchema(node) };
+
+    /// <summary>The fork's options for one tool: the JSON options, the schema options and its description.</summary>
+    /// <param name="services">The server's services.</param>
+    /// <param name="method">The tool method.</param>
+    /// <returns>The options with which the tool is made.</returns>
+    public static McpServerToolCreateOptions CreateOptions(IServiceProvider services, MethodInfo method)
+    {
+        var options = new McpServerToolCreateOptions
+        {
+            Services = services,
+            SerializerOptions = Options,
+            SchemaCreateOptions = SchemaOptions,
+            Description = ToolDescriptions.For(method),
+        };
+        return options;
+    }
 
     /// <summary>Replaces the boolean schema <c>true</c> by the empty object schema.</summary>
     /// <param name="node">A schema node.</param>
