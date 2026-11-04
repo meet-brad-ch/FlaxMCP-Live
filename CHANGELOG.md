@@ -6,6 +6,8 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 
 ## [Unreleased]
 
+## [1.1.4]
+
 ### Fixed
 - Every tool: a failed call now gives its reason. The MCP SDK shows the message of an `McpException` only. For any
   other exception, the client read "An error occurred invoking 'tool'." and nothing more. This included an
