@@ -1,6 +1,6 @@
 # FlaxMCP Tool Reference
 
-Generated from a live `tools/list` on FlaxMCP-Live 1.1.2 (59 tools).
+Generated from a live `tools/list` on FlaxMCP-Live 1.1.3 (59 tools).
 `editor_execute_csharp` is only present when `FLAX_ALLOW_CODE_EXECUTION=true`.
 
 Regenerate with `scripts/dump_tools.py` after changing the server.
@@ -399,7 +399,7 @@ Controls play mode in the live Flax Editor. Action must be start, stop, pause, o
 
 ### `editor_screenshot`
 
-Captures the visible Flax Editor scene viewport to a PNG file. The output directory must already exist, and capture is unavailable in headless mode.
+Captures the Scene viewport of the running Flax Editor to a PNG file. The Scene tab must be visible: the capture fails when another tab covers it. The output folder must exist. The capture is not available in headless mode. To render from a camera without the Scene tab, use editor_camera_screenshot.
 
 | Param | Type | Req | Notes |
 |---|---|---|---|
