@@ -6,6 +6,17 @@ a minor version adds tools, and a patch version never changes tools. Before 1.0,
 
 ## [Unreleased]
 
+### Fixed
+- Every tool: a failed call now gives its reason. The MCP SDK shows the message of an `McpException` only. For any
+  other exception, the client read "An error occurred invoking 'tool'." and nothing more. This included an
+  `editor_screenshot` call with a missing or wrong path. A call-tool filter (`ToolErrors.cs`) now passes each other
+  exception on with its type and message, for example "ArgumentException: The path is empty." No tool, parameter or
+  result changes.
+
+### Changed
+- `editor_screenshot` description: the Scene tab must be visible, and `editor_camera_screenshot` renders from a
+  camera without it.
+
 ## [1.1.3]
 
 ### Fixed

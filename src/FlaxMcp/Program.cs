@@ -46,6 +46,7 @@ var mcpServer = builder.Services
                        .AddMcpServer(options => options.ServerInstructions = ServerInstructions.Build(startupOptions, toolCount));
 
 builder.Services.Configure<ModelContextProtocol.Server.McpServerOptions>(options => options.ServerInfo = FlaxMcp.ServerIdentity.Create());
+mcpServer.WithRequestFilters(filters => filters.AddCallToolFilter(ToolErrors.Filter));
 PromptRegistration.AddPrompts(mcpServer, startupOptions);
 mcpServer.WithStdioServerTransport();
 

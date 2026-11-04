@@ -46,6 +46,10 @@ internal static class ToolDescriptions
             "and scale set the world transform of the duplicate. The source actor does not change. The editor records " +
             "an Undo step. The scene stays unsaved until editor_save. To make a new actor of a type, use " +
             "editor_create_actor. To move an actor to a different parent, use editor_reparent_actor.",
+        ["editor_screenshot"] =
+            "Captures the Scene viewport of the running Flax Editor to a PNG file. The Scene tab must be visible: the " +
+            "capture fails when another tab covers it. The output folder must exist. The capture is not available in " +
+            "headless mode. To render from a camera without the Scene tab, use editor_camera_screenshot.",
     };
 
     /// <summary>The replacement description of a tool method.</summary>
