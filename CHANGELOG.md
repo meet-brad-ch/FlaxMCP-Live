@@ -88,6 +88,9 @@ The first official release. The version has no pre-release label.
 - The bridge host compiles also when the engine folder has old `<guid>_FlaxEngine.CSharp.dll` copies that a
   rebuild renamed aside (CS1704). The host now uses one reference for each assembly name, and the loaded assembly wins.
 
+### Changed
+- ModelContextProtocol 2.3.0 (was 2.2.0) and Microsoft.Extensions.Hosting 10.0.14 (was 10.0.11).
+
 ## [0.2.0-preview.2]
 
 ### Added

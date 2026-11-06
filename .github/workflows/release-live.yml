@@ -29,7 +29,9 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           # A literal match: as a regex, "[1.0.0]" is a bracket expression and misses the heading.
-          awk -v v="$version" 'index($0, "## [" v "]") == 1 {found=1; next} found && /^## \[/ {exit} found {print}' CHANGELOG.md > notes.md
+          awk -v v="$version" 'index($0, "## [" v "]") == 1 {found=1; next} found && /^## \[/ {exit} found {print}' CHANGELOG.md > section.md
+          # GitHub shows a line break in a release text as a break: join each wrapped bullet into one line.
+          sed -e ':a' -e 'N' -e '$!ba' -e 's/\n  \+/ /g' section.md > notes.md
           test -s notes.md
       - name: Create the GitHub release
         env:

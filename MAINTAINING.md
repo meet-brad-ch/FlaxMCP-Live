@@ -23,7 +23,8 @@ never changes tools.
      not push.
   4. Push the commit and the tag.
   5. The workflow `release-live.yml` compares the tag with the project version. Then it builds, tests and packs. It
-     makes the GitHub release, with the changelog section as the notes. The release has no assets: the workflow packs the
+     makes the GitHub release, with the changelog section as the notes, one line per bullet (GitHub shows a line break
+     in release notes as a break). A tag without a changelog section fails. The release has no assets: the workflow packs the
      `.nupkg` only as a check, and the public repository offers no archive downloads. A version with a label, for
      example `-preview.1`, becomes a pre-release.
 
